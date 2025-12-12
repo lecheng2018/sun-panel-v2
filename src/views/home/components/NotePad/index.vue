@@ -11,6 +11,7 @@ import {
     deleteNotepad,
     type NotepadInfo 
 } from '@/api/panel/notepad'
+import { useAuthStore } from '@/store/modules/auth'
 
 const props = defineProps<{
   visible: boolean
@@ -23,6 +24,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const message = useMessage()
 const dialog = useDialog()
+const authStore = useAuthStore()
 const editorRef = ref<HTMLDivElement | null>(null)
 const notepadRef = ref<HTMLElement | null>(null)
 const headerRef = ref<HTMLElement | null>(null)
@@ -49,6 +51,10 @@ onMounted(async () => {
 
 // 加载列表
 const loadList = async () => {
+    // 检查用户是否已登录，未登录则不请求接口
+    if (!authStore.token) {
+        return
+    }
     try {
         const res = await getNotepadList()
         if (res.code === 0) {
