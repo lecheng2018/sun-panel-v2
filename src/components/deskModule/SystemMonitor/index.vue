@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from 'vue'
 import { VueDraggable } from 'vue-draggable-plus'
-import { NButton, NDropdown, useDialog, useMessage } from 'naive-ui'
+import { NDropdown, useDialog, useMessage } from 'naive-ui'
 import AppIconSystemMonitor from './AppIconSystemMonitor/index.vue'
 import { type CardStyle, type MonitorData, MonitorType } from './typings'
 import Edit from './Edit/index.vue'
@@ -204,6 +204,7 @@ function handleRightMenuSelect(key: string | number) {
           class="icon-info-box"
           filter=".not-drag"
           :disabled="!monitorGroup.sortStatus"
+          @end="handleSaveSort"
         >
           <div
             v-for="item, index in monitorDatas" :key="index"
@@ -230,6 +231,7 @@ function handleRightMenuSelect(key: string | number) {
           class="icon-small-box"
           filter=".not-drag"
           :disabled="!monitorGroup.sortStatus"
+          @end="handleSaveSort"
         >
           <div
             v-for="item, index in monitorDatas" :key="index"
@@ -249,19 +251,7 @@ function handleRightMenuSelect(key: string | number) {
         </vuedraggable>
       </template>
 
-      <!-- 编辑栏 -->
-      <template v-if="monitorGroup.sortStatus && allowEdit">
-        <div class="system-monitor-edit-bar flex mt-[10px]">
-          <NButton color="#2a2a2a6b" @click="handleSaveSort()">
-            <template #icon>
-              <SvgIcon class="text-white font-xl" icon="material-symbols:save" />
-            </template>
-            <div>
-              {{ $t('common.saveSort') }}
-            </div>
-          </NButton>
-        </div>
-      </template>
+
     </div>
 
     <Edit v-model:visible="editShowStatus" :monitor-data="editData" :index="editIndex" @done="handleSaveDone" />

@@ -457,8 +457,11 @@ const close = () => {
                 <SvgIconOnline icon="mdi:format-header-2" />
              </div>
              <div class="w-[1px] h-4 bg-amber-300 mx-1"></div>
-             <div class="p-1 hover:bg-amber-200 rounded cursor-pointer transition-colors" @mousedown.prevent="execCommand('insertUnorderedList')" title="列表">
+             <div class="p-1 hover:bg-amber-200 rounded cursor-pointer transition-colors" @mousedown.prevent="execCommand('insertUnorderedList')" title="无序列表">
                 <SvgIconOnline icon="mdi:format-list-bulleted" />
+             </div>
+             <div class="p-1 hover:bg-amber-200 rounded cursor-pointer transition-colors" @mousedown.prevent="execCommand('insertOrderedList')" title="有序列表">
+                <SvgIconOnline icon="mdi:format-list-numbered" />
              </div>
              <div class="p-1 hover:bg-amber-200 rounded cursor-pointer transition-colors" @mousedown.prevent="execCommand('formatBlock', 'PRE')" title="代码块">
                 <SvgIconOnline icon="mdi:code-tags" />

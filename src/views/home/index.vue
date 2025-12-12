@@ -778,13 +778,12 @@ function handleSaveSort(itemGroup: ItemGroup) {
 
     saveSort({ itemIconGroupId: itemGroup.id as number, sortItems: saveItems }).then(({ code, msg }) => {
       if (code === 0) {
-        ms.success(t('common.saveSuccess'))
         // 清除该分组的图标缓存
         ss.remove(`${ITEM_ICON_LIST_CACHE_KEY_PREFIX}${itemGroup.id}`)
         // itemGroup.sortStatus = false // 不要自动关闭排序状态，允许用户继续操作
       }
       else {
-        ms.error(`${t('common.saveFail')}:${msg}`)
+        console.error(`${t('common.saveFail')}:${msg}`)
       }
     })
   }
