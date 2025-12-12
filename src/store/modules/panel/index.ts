@@ -4,7 +4,6 @@ import { router } from '@/router'
 import type { PanelStateNetworkModeEnum } from '@/enums'
 import { get as getUserConfig } from '@/api/panel/userConfig'
 import { ss } from '@/utils/storage'
-import { useAuthStore } from '@/store/modules/auth'
 
 // 用户配置缓存键
 const USER_CONFIG_CACHE_KEY = 'USER_CONFIG_CACHE'
@@ -34,15 +33,6 @@ export const usePanelState = defineStore('panel', {
     // 获取云端（搭建的服务器）的面板配置
     updatePanelConfigByCloud() {
       try {
-        // 检查用户是否已登录，未登录则不请求接口
-        const authStore = useAuthStore()
-        if (!authStore.token) {
-          // 未登录时只使用本地默认配置
-          this.panelConfig = defaultStatePanelConfig()
-          this.recordState()
-          return
-        }
-
         // 1. 首先尝试从缓存读取数据
         const cachedData = ss.get(USER_CONFIG_CACHE_KEY)
         if (cachedData) {
@@ -52,6 +42,7 @@ export const usePanelState = defineStore('panel', {
         }
 
         // 2. 缓存中没有数据，请求接口获取数据
+        // 公开模式下也可以请求配置，不需要token
         getUserConfig<Panel.userConfig>().then((res) => {
           if (res.code === 0) {
             this.panelConfig = { ...defaultStatePanelConfig(), ...res.data.panel }

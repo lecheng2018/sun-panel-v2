@@ -65,8 +65,8 @@ async function handleRefreshData() {
     // 调用loadBookmarkTree并传入true参数以强制刷新
     await loadBookmarkTree(true)
 
-    // 刷新便签数据
-    if (notepadInstance.value) {
+    // 刷新便签数据（仅登录状态下）
+    if (authStore.visitMode === VisitMode.VISIT_MODE_LOGIN && notepadInstance.value) {
         // @ts-ignore
         notepadInstance.value.refreshData?.()
     }
@@ -1122,7 +1122,7 @@ function handleChangeNetwork(targetMode: PanelStateNetworkModeEnum) {
 		</div>
 
 		<!-- 右上角便签按钮 -->
-		<div class="fixed top-4 right-4 z-50 cursor-pointer transition-opacity hover:opacity-80 no-tap-highlight" @click="notepadVisible = !notepadVisible">
+		<div v-if="authStore.visitMode === VisitMode.VISIT_MODE_LOGIN" class="fixed top-4 right-4 z-50 cursor-pointer transition-opacity hover:opacity-80 no-tap-highlight" @click="notepadVisible = !notepadVisible">
 			<SvgIcon icon="note" class="text-white text-[32px] drop-shadow-md" />
 		</div>
 

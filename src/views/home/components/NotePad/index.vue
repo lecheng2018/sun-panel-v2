@@ -12,6 +12,7 @@ import {
     type NotepadInfo 
 } from '@/api/panel/notepad'
 import { useAuthStore } from '@/store/modules/auth'
+import { VisitMode } from '@/enums/auth'
 
 const props = defineProps<{
   visible: boolean
@@ -360,11 +361,12 @@ const close = () => {
 
 <template>
   <!-- 遮罩层，点击关闭 -->
-  <div v-show="visible" class="fixed inset-0 z-[100] bg-transparent" @click="close"></div>
+  <div v-if="authStore.visitMode === VisitMode.VISIT_MODE_LOGIN" v-show="visible" class="fixed inset-0 z-[100] bg-transparent" @click="close"></div>
 
   <!-- 便签主体 -->
   <transition name="note-fade">
     <div
+        v-if="authStore.visitMode === VisitMode.VISIT_MODE_LOGIN"
         v-show="visible"
         ref="notepadRef"
         class="fixed z-[101] w-[350px] h-[45vh] flex flex-col shadow-xl rounded-lg overflow-hidden border border-amber-200"
