@@ -71,6 +71,20 @@ async function handleRefreshData() {
         notepadInstance.value.refreshData?.()
     }
 
+    // 检查是否需要重新获取网络壁纸
+    if (panelState.panelConfig.autoNetworkWallpaper) {
+      try {
+        // 添加时间戳参数，确保每次请求的URL不同，避免浏览器缓存
+        const timestamp = new Date().getTime()
+        const baseUrl = panelState.panelConfig.autoNetworkWallpaperApi || 'https://img.xjh.me/random_img.php?return=302&type=bg&ctype=nature'
+        const apiUrl = baseUrl.includes('?') ? `${baseUrl}&t=${timestamp}` : `${baseUrl}?t=${timestamp}`
+        panelState.panelConfig.backgroundImageSrc = apiUrl
+        panelState.recordState()
+      } catch (error) {
+        console.error('重新获取网络壁纸失败', error)
+      }
+    }
+
     ms.success(t('common.refreshSuccess'))
   } catch (error) {
     console.error('刷新数据失败:', error)
@@ -844,6 +858,17 @@ onMounted(async () => {
 
   // 更新同步云端配置
   panelState.updatePanelConfigByCloud()
+
+  // 检查是否需要自动获取网络壁纸
+  if (panelState.panelConfig.autoNetworkWallpaper) {
+    try {
+      const apiUrl = panelState.panelConfig.autoNetworkWallpaperApi || 'https://img.xjh.me/random_img.php?return=302&type=bg&ctype=nature'
+      panelState.panelConfig.backgroundImageSrc = apiUrl
+      panelState.recordState()
+    } catch (error) {
+      console.error('自动获取网络壁纸失败', error)
+    }
+  }
 
   // 设置标题
   if (panelState.panelConfig.logoText)

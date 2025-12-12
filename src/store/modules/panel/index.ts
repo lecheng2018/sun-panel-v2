@@ -57,6 +57,11 @@ export const usePanelState = defineStore('panel', {
             this.panelConfig = { ...defaultStatePanelConfig(), ...res.data.panel }
             // 3. 将数据永久保存到缓存中
             ss.set(USER_CONFIG_CACHE_KEY, res.data)
+            // 4. 检查是否启用自动获取网络壁纸
+            if (this.panelConfig.autoNetworkWallpaper) {
+                const apiUrl = this.panelConfig.autoNetworkWallpaperApi || 'https://img.xjh.me/random_img.php?return=302&type=bg&ctype=nature'
+                this.panelConfig.backgroundImageSrc = apiUrl
+            }
           }
           else {
             this.resetPanelConfig() // 重置恢复默认

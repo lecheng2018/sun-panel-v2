@@ -88,6 +88,23 @@ function uploadCloud() {
   })
 }
 
+// 自动获取网络壁纸开关变化处理
+function handleAutoNetworkWallpaperChange() {
+  if (panelState.panelConfig.autoNetworkWallpaper) {
+    // 当开关打开时，立即获取一张随机壁纸
+    fetchRandomWallpaper()
+  }
+}
+
+// 获取随机壁纸
+function fetchRandomWallpaper() {
+  const apiUrl = panelState.panelConfig.autoNetworkWallpaperApi || 'https://img.xjh.me/random_img.php?return=302&type=bg&ctype=nature'
+  // 使用302跳转，直接将图片地址设置为背景图
+  panelState.panelConfig.backgroundImageSrc = apiUrl
+  // 保存配置
+  uploadCloud()
+}
+
 function resetPanelConfig() {
   panelState.resetPanelConfig()
   uploadCloud()
@@ -247,6 +264,14 @@ function resetPanelConfig() {
       <div class="flex items-center mt-[10px]">
         <span class="mr-[10px]">{{ $t('apps.baseSettings.mask') }}</span>
         <NSlider v-model:value="panelState.panelConfig.backgroundMaskNumber" class="max-w-[200px]" :step="0.1" :max="1" />
+      </div>
+
+      <div class="flex items-center mt-[10px]">
+        <span class="mr-[10px]">{{ $t('apps.baseSettings.autoNetworkWallpaper') }}</span>
+        <NSwitch v-model:value="panelState.panelConfig.autoNetworkWallpaper" @click="handleAutoNetworkWallpaperChange" />
+      </div>
+      <div v-if="panelState.panelConfig.autoNetworkWallpaper" class="mt-1">
+        <NInput v-model:value="panelState.panelConfig.autoNetworkWallpaperApi" type="text" size="small" clearable placeholder="请输入网络壁纸API地址" />
       </div>
     </NCard>
 

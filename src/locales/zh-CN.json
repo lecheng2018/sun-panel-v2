@@ -121,7 +121,8 @@
       "topMargin": "上边距",
       "uploadOrDragText": "点击上传替换图片或拖拽到框内",
       "vague": "模糊",
-      "wallpaper": "壁纸"
+      "wallpaper": "壁纸",
+      "autoNetworkWallpaper": "自动获取网络壁纸"
     },
     "exportImport": {
       "appName": "导出导入",
