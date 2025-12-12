@@ -781,7 +781,7 @@ function handleSaveSort(itemGroup: ItemGroup) {
         ms.success(t('common.saveSuccess'))
         // 清除该分组的图标缓存
         ss.remove(`${ITEM_ICON_LIST_CACHE_KEY_PREFIX}${itemGroup.id}`)
-        itemGroup.sortStatus = false
+        // itemGroup.sortStatus = false // 不要自动关闭排序状态，允许用户继续操作
       }
       else {
         ms.error(`${t('common.saveFail')}:${msg}`)
@@ -902,15 +902,18 @@ function handleSetHoverStatus(groupIndex: number, hoverStatus: boolean) {
     items.value[groupIndex].hoverStatus = hoverStatus
 }
 
-function handleSetSortStatus(groupIndex: number, sortStatus: boolean) {
-  if (items.value[groupIndex])
-    items.value[groupIndex].sortStatus = sortStatus
+function handleSetSortStatus(itemGroup: ItemGroup, sortStatus: boolean) {
+  itemGroup.sortStatus = sortStatus
 
   // 并未保存排序重新更新数据
   if (!sortStatus) {
-    // 单独更新组
-    if (items.value[groupIndex] && items.value[groupIndex].id)
-      updateItemIconGroupByNet(groupIndex, items.value[groupIndex].id as number)
+    if (itemGroup.id) {
+       // Find the index in the original items array to ensure data consistency
+       const idx = items.value.findIndex(x => x.id === itemGroup.id)
+       if (idx !== -1) {
+           updateItemIconGroupByNet(idx, itemGroup.id as number)
+       }
+    }
   }
 }
 
@@ -1024,8 +1027,17 @@ function handleChangeNetwork(targetMode: PanelStateNetworkModeEnum) {
 
           if (result.code === 0) {
             // 密码正确,切换模式
+            // 切换前自动保存排序状态
+            items.value.forEach(group => {
+              if (group.sortStatus) {
+                handleSaveSort(group)
+                group.sortStatus = false // 立即关闭排序状态
+              }
+            })
+            
             panelState.setNetworkMode(targetMode)
             ms.success(t('panelHome.changeToLanModelSuccess'))
+            filterItemsByNetworkMode() // 确保视图更新
             return true
           } else {
             // 密码错误
@@ -1040,8 +1052,17 @@ function handleChangeNetwork(targetMode: PanelStateNetworkModeEnum) {
       },
     })
   } else {
+    // 切换前自动保存排序状态
+    items.value.forEach(group => {
+      if (group.sortStatus) {
+        handleSaveSort(group)
+        group.sortStatus = false // 立即关闭排序状态
+      }
+    })
+
     // 从内网切换到公网,或其他情况,直接切换
     panelState.setNetworkMode(targetMode)
+    filterItemsByNetworkMode() // 确保视图更新
     if (targetMode === PanelStateNetworkModeEnum.wan) {
       ms.success(t('panelHome.changeToWanModelSuccess'))
     }
@@ -1176,14 +1197,13 @@ function handleChangeNetwork(targetMode: PanelStateNetworkModeEnum) {
                 {{ itemGroup.title }}
               </span>
               <div
-                v-if="authStore.visitMode === VisitMode.VISIT_MODE_LOGIN"
+                v-if="authStore.visitMode === VisitMode.VISIT_MODE_LOGIN && panelState.networkMode === PanelStateNetworkModeEnum.lan"
                 class="group-buttons ml-2 delay-100 transition-opacity flex"
-                :class="itemGroup.hoverStatus ? 'opacity-100' : 'opacity-0'"
               >
                 <span class="mr-2 cursor-pointer" :title="t('common.add')" @click="handleAddItem(itemGroup.id)">
                   <SvgIcon class="text-white font-xl" icon="typcn:plus" />
                 </span>
-                <span class="mr-2 cursor-pointer " :title="t('common.sort')" @click="handleSetSortStatus(itemGroupIndex, !itemGroup.sortStatus)">
+                <span class="mr-2 cursor-pointer " :title="t('common.sort')" @click="handleSetSortStatus(itemGroup, !itemGroup.sortStatus)">
                   <SvgIcon class="text-white font-xl" icon="ri:drag-drop-line" />
                 </span>
               </div>
@@ -1197,6 +1217,7 @@ function handleChangeNetwork(targetMode: PanelStateNetworkModeEnum) {
                   class="icon-info-box"
                   filter=".not-drag"
                   :disabled="!itemGroup.sortStatus"
+                  @end="handleSaveSort(itemGroup)"
                 >
                   <div v-for="item, index in itemGroup.items" :key="index" :title="item.description" @contextmenu="(e) => handleContextMenu(e, itemGroupIndex, item)">
                     <AppIcon
@@ -1234,6 +1255,7 @@ function handleChangeNetwork(targetMode: PanelStateNetworkModeEnum) {
 
                   filter=".not-drag"
                   :disabled="!itemGroup.sortStatus"
+                  @end="handleSaveSort(itemGroup)"
                 >
                   <div v-for="item, index in itemGroup.items" :key="index" :title="item.description" @contextmenu="(e) => handleContextMenu(e, itemGroupIndex, item)">
                     <AppIcon
@@ -1263,18 +1285,7 @@ function handleChangeNetwork(targetMode: PanelStateNetworkModeEnum) {
             </div>
 
             <!-- 编辑栏 -->
-            <div v-if="itemGroup.sortStatus" class="flex mt-[10px]">
-              <div>
-                <NButton color="#2a2a2a6b" @click="handleSaveSort(itemGroup)">
-                  <template #icon>
-                    <SvgIcon class="text-white font-xl" icon="material-symbols:save" />
-                  </template>
-                  <div>
-                    {{ $t('common.saveSort') }}
-                  </div>
-                </NButton>
-              </div>
-            </div>
+
           </div>
         </div>
         <div class="mt-5 footer" v-html="panelState.panelConfig.footerHtml" />
