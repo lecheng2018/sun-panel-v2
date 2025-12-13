@@ -1060,7 +1060,7 @@ function handleChangeNetwork(targetMode: PanelStateNetworkModeEnum) {
                 group.sortStatus = false // 立即关闭排序状态
               }
             })
-            
+
             panelState.setNetworkMode(targetMode)
             ms.success(t('panelHome.changeToLanModelSuccess'))
             filterItemsByNetworkMode() // 确保视图更新
@@ -1487,21 +1487,22 @@ html {
     grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
     gap: 14px;
   }
-  
+
   .icon-small-box {
     grid-template-columns: repeat(auto-fill, minmax(min(85px, 100%), 1fr));
     gap: 14px;
   }
 }
 
+/* 响应式图标块布局 - 继续使用grid布局，但减小最小宽度 */
 @media (max-width: 768px) {
   .icon-info-box {
-    grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100px, 100%), 1fr));
     gap: 12px;
   }
   
   .icon-small-box {
-    grid-template-columns: repeat(auto-fill, minmax(min(70px, 100%), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(60px, 100%), 1fr));
     gap: 12px;
   }
 }
@@ -1520,51 +1521,17 @@ html {
 
 @media (max-width: 360px) {
   .icon-info-box {
-    grid-template-columns: repeat(auto-fill, minmax(min(90px, 100%), 1fr));
-    gap: 8px;
-  }
-  
-  .icon-small-box {
-    grid-template-columns: repeat(auto-fill, minmax(min(55px, 100%), 1fr));
-    gap: 8px;
-  }
-}
-
-@media (max-width: 360px) {
-  .icon-info-box {
     grid-template-columns: repeat(auto-fill, minmax(min(100px, 100%), 1fr));
-    gap: 10px;
+    gap: 8px;
   }
   
   .icon-small-box {
     grid-template-columns: repeat(auto-fill, minmax(min(60px, 100%), 1fr));
-    gap: 10px;
+    gap: 8px;
   }
 }
 
-@media (max-width: 480px) {
-  .icon-info-box {
-    grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr));
-  }
-  
-  .icon-small-box {
-    grid-template-columns: repeat(auto-fill, minmax(min(80px, 100%), 1fr));
-  }
-  
-  .icon-info-box, .icon-small-box {
-    gap: 12px;
-  }
-}
 
-@media (max-width: 360px) {
-  .icon-info-box {
-    grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr));
-  }
-  
-  .icon-small-box {
-    grid-template-columns: repeat(auto-fill, minmax(min(70px, 100%), 1fr));
-  }
-}
 
 /* 优化条状按钮阴影 */
 /* 优化条状按钮阴影 - 已移除，避免污染全局 .fixed 类 */

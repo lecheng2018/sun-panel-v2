@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { NEllipsis } from 'naive-ui'
 import { ItemIcon } from '@/components/common'
 import { PanelPanelConfigStyleEnum } from '@/enums'
 
@@ -62,17 +61,13 @@ const itemIconSize = computed(() => {
 
       <!-- 文字 -->
       <!-- 如果为纯白色，将自动根据背景的明暗计算字体的黑白色 -->
-      <div class="text-white flex items-center" :style="{ color: (iconTextColor === '#ffffff') ? textColor : iconTextColor, maxWidth: 'calc(100% - 80px)' }">
+      <div class="text-white flex items-center" :style="{ color: (iconTextColor === '#ffffff') ? textColor : iconTextColor, maxWidth: 'calc(100% - 20px)', padding: '0 10px' }">
         <div class="app-icon-info-text-box w-full">
           <div class="app-icon-info-text-box-title font-semibold w-full">
-            <NEllipsis>
-              {{ itemInfo?.title }}
-            </NEllipsis>
+            {{ itemInfo?.title }}
           </div>
           <div v-if="!iconTextInfoHideDescription" class="app-icon-info-text-box-description">
-            <NEllipsis :line-clamp="2" class="text-xs">
-              {{ itemInfo?.description }}
-            </NEllipsis>
+            {{ itemInfo?.description }}
           </div>
         </div>
       </div>
@@ -149,10 +144,16 @@ const itemIconSize = computed(() => {
   
   .app-icon-info-text-box-title {
     font-size: 0.85rem !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
   }
   
   .app-icon-info-text-box-description {
     font-size: 0.7rem !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
   }
   
   .app-icon-small-title {
