@@ -32,6 +32,17 @@ const textColor = computed(() => {
   const luminance = calculateLuminance(props.itemInfo?.icon?.backgroundColor || defaultBackground)
   return luminance > 0.5 ? 'black' : 'white'
 })
+
+// 根据面板样式计算ItemIcon的尺寸，使图标内容随容器等比缩放
+const itemIconSize = computed(() => {
+  if (props.style === PanelPanelConfigStyleEnum.info) {
+    // Info模式下，图标容器尺寸为60px/50px/40px（响应式），内部图标占80%
+    return Math.round(props.size * 0.8)
+  } else {
+    // Icon模式下，内部图标占容器的80%
+    return Math.round(props.size * 0.8)
+  }
+})
 </script>
 
 <template>
@@ -43,9 +54,9 @@ const textColor = computed(() => {
       :style="{ background: itemInfo?.icon?.backgroundColor || defaultBackground }"
     >
       <!-- 图标 -->
-      <div class="app-icon-info-icon w-[70px] h-[70px]">
-        <div class="w-[70px] h-full flex items-center justify-center ">
-          <ItemIcon :item-icon="itemInfo?.icon" force-background="transparent" :size="50" class="overflow-hidden rounded-xl" />
+      <div class="app-icon-info-icon">
+        <div class="w-full h-full flex items-center justify-center ">
+          <ItemIcon :item-icon="itemInfo?.icon" force-background="transparent" :size="itemIconSize" class="overflow-hidden rounded-xl" />
         </div>
       </div>
 
@@ -70,10 +81,10 @@ const textColor = computed(() => {
     <!-- 极简(小)图标（APP） -->
     <div v-if="style === PanelPanelConfigStyleEnum.icon" class="app-icon-small">
       <div
-        class="app-icon-small-icon overflow-hidden rounded-2xl sunpanel w-[70px] h-[70px] mx-auto rounded-2xl transition-all duration-200 hover:shadow-[0_0_20px_10px_rgba(0,0,0,0.2)]"
+        class="app-icon-small-icon overflow-hidden rounded-2xl sunpanel mx-auto rounded-2xl transition-all duration-200 hover:shadow-[0_0_20px_10px_rgba(0,0,0,0.2)]"
         :title="itemInfo?.description"
       >
-        <ItemIcon :item-icon="itemInfo?.icon" />
+        <ItemIcon :item-icon="itemInfo?.icon" :size="itemIconSize" />
       </div>
       <div
         v-if="!iconTextIconHideTitle"
@@ -85,3 +96,117 @@ const textColor = computed(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* 响应式图标块设计 */
+.app-icon-info-icon {
+  width: min(70px, 100%);
+  height: min(70px, 100%);
+  min-width: min(70px, 100%);
+  aspect-ratio: 1 / 1;
+}
+
+.app-icon-small-icon {
+  width: min(70px, 100%);
+  height: min(70px, 100%);
+  aspect-ratio: 1 / 1;
+}
+
+/* 确保item-icon完全填充容器 */
+:deep(.item-icon) {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 针对不同屏幕尺寸的等比缩小 */
+@media (max-width: 1024px) {
+  .app-icon-info-icon {
+    width: min(55px, 100%);
+    height: min(55px, 100%);
+    min-width: min(55px, 100%);
+  }
+  
+  .app-icon-small-icon {
+    width: min(55px, 100%);
+    height: min(55px, 100%);
+  }
+}
+
+@media (max-width: 768px) {
+  .app-icon-info-icon {
+    width: min(45px, 100%);
+    height: min(45px, 100%);
+    min-width: min(45px, 100%);
+  }
+  
+  .app-icon-small-icon {
+    width: min(45px, 100%);
+    height: min(45px, 100%);
+  }
+  
+  .app-icon-info-text-box-title {
+    font-size: 0.85rem !important;
+  }
+  
+  .app-icon-info-text-box-description {
+    font-size: 0.7rem !important;
+  }
+  
+  .app-icon-small-title {
+    font-size: 0.75rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-icon-info-icon {
+    width: min(40px, 100%);
+    height: min(40px, 100%);
+    min-width: min(40px, 100%);
+  }
+  
+  .app-icon-small-icon {
+    width: min(40px, 100%);
+    height: min(40px, 100%);
+  }
+  
+  .app-icon-info-text-box-title {
+    font-size: 0.8rem !important;
+  }
+  
+  .app-icon-info-text-box-description {
+    font-size: 0.65rem !important;
+  }
+  
+  .app-icon-small-title {
+    font-size: 0.7rem !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .app-icon-info-icon {
+    width: min(35px, 100%);
+    height: min(35px, 100%);
+    min-width: min(35px, 100%);
+  }
+  
+  .app-icon-small-icon {
+    width: min(35px, 100%);
+    height: min(35px, 100%);
+  }
+  
+  .app-icon-info-text-box-title {
+    font-size: 0.75rem !important;
+  }
+  
+  .app-icon-info-text-box-description {
+    font-size: 0.6rem !important;
+  }
+  
+  .app-icon-small-title {
+    font-size: 0.65rem !important;
+  }
+}
+</style>

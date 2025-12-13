@@ -1468,7 +1468,7 @@ html {
 .icon-info-box {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
   gap: 18px;
 
 }
@@ -1476,14 +1476,93 @@ html {
 .icon-small-box {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100px, 100%), 1fr));
   gap: 18px;
 
 }
 
-@media (max-width: 500px) {
-  .icon-info-box{
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+/* 响应式图标块布局 */
+@media (max-width: 1024px) {
+  .icon-info-box {
+    grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
+    gap: 14px;
+  }
+  
+  .icon-small-box {
+    grid-template-columns: repeat(auto-fill, minmax(min(85px, 100%), 1fr));
+    gap: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .icon-info-box {
+    grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr));
+    gap: 12px;
+  }
+  
+  .icon-small-box {
+    grid-template-columns: repeat(auto-fill, minmax(min(70px, 100%), 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .icon-info-box {
+    grid-template-columns: repeat(auto-fill, minmax(min(100px, 100%), 1fr));
+    gap: 10px;
+  }
+  
+  .icon-small-box {
+    grid-template-columns: repeat(auto-fill, minmax(min(60px, 100%), 1fr));
+    gap: 10px;
+  }
+}
+
+@media (max-width: 360px) {
+  .icon-info-box {
+    grid-template-columns: repeat(auto-fill, minmax(min(90px, 100%), 1fr));
+    gap: 8px;
+  }
+  
+  .icon-small-box {
+    grid-template-columns: repeat(auto-fill, minmax(min(55px, 100%), 1fr));
+    gap: 8px;
+  }
+}
+
+@media (max-width: 360px) {
+  .icon-info-box {
+    grid-template-columns: repeat(auto-fill, minmax(min(100px, 100%), 1fr));
+    gap: 10px;
+  }
+  
+  .icon-small-box {
+    grid-template-columns: repeat(auto-fill, minmax(min(60px, 100%), 1fr));
+    gap: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .icon-info-box {
+    grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr));
+  }
+  
+  .icon-small-box {
+    grid-template-columns: repeat(auto-fill, minmax(min(80px, 100%), 1fr));
+  }
+  
+  .icon-info-box, .icon-small-box {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 360px) {
+  .icon-info-box {
+    grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr));
+  }
+  
+  .icon-small-box {
+    grid-template-columns: repeat(auto-fill, minmax(min(70px, 100%), 1fr));
   }
 }
 
