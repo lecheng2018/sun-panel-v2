@@ -312,7 +312,7 @@
     "changeToWanModel": "切换为公网模式",
     "changeToWanModelSuccess": "已经切换到公网模式（模式状态仅保存在本地）",
     "goToLogin": "前往登录",
-    "openLanUrl": "打开局域网地址",
+    "openLanUrl": "打开内网地址",
     "openWanUrl": "打开公网地址",
     "refreshData": "刷新数据",
     "verifyPassword": "验证密码",

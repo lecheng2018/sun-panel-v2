@@ -812,17 +812,19 @@ function getDropdownMenuOptions() {
 
   ]
 
-  if (currentRightSelectItem.value?.lanUrl && panelState.networkMode === PanelStateNetworkModeEnum.wan) {
-    dropdownMenuOptions.push({
-      label: t('panelHome.openLanUrl'),
-      key: 'openLanUrl',
-    })
-  }
-
-  if (currentRightSelectItem.value?.lanUrl && panelState.networkMode === PanelStateNetworkModeEnum.lan) {
+  // 当图标有公网地址时，显示打开公网地址选项
+  if (currentRightSelectItem.value?.url) {
     dropdownMenuOptions.push({
       label: t('panelHome.openWanUrl'),
       key: 'openWanUrl',
+    })
+  }
+
+  // 当图标有内网地址时，显示打开内网地址选项
+  if (currentRightSelectItem.value?.lanUrl) {
+    dropdownMenuOptions.push({
+      label: t('panelHome.openLanUrl'),
+      key: 'openLanUrl',
     })
   }
 
