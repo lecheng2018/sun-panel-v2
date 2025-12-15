@@ -132,14 +132,14 @@ const itemIconSize = computed(() => {
 
 @media (max-width: 768px) {
   .app-icon-info-icon {
-    width: min(40px, 100%);
-    height: min(40px, 100%);
-    min-width: min(40px, 100%);
+    width: min(45px, 100%);
+    height: min(45px, 100%);
+    min-width: min(45px, 100%);
   }
   
   .app-icon-small-icon {
-    width: min(40px, 100%);
-    height: min(40px, 100%);
+    width: min(45px, 100%);
+    height: min(45px, 100%);
   }
   
   .app-icon-info-text-box-title {
@@ -163,14 +163,14 @@ const itemIconSize = computed(() => {
 
 @media (max-width: 480px) {
   .app-icon-info-icon {
-    width: min(35px, 100%);
-    height: min(35px, 100%);
-    min-width: min(35px, 100%);
+    width: min(40px, 100%);
+    height: min(40px, 100%);
+    min-width: min(40px, 100%);
   }
   
   .app-icon-small-icon {
-    width: min(35px, 100%);
-    height: min(35px, 100%);
+    width: min(40px, 100%);
+    height: min(40px, 100%);
   }
   
   .app-icon-info-text-box-title {
@@ -188,14 +188,14 @@ const itemIconSize = computed(() => {
 
 @media (max-width: 360px) {
   .app-icon-info-icon {
-    width: min(25px, 100%);
-    height: min(25px, 100%);
-    min-width: min(25px, 100%);
+    width: min(35px, 100%);
+    height: min(35px, 100%);
+    min-width: min(35px, 100%);
   }
   
   .app-icon-small-icon {
-    width: min(25px, 100%);
-    height: min(25px, 100%);
+    width: min(35px, 100%);
+    height: min(35px, 100%);
   }
   
   .app-icon-info-text-box-title {
