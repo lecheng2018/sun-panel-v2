@@ -261,7 +261,8 @@
     },
     "searchBox": {
       "inputPlaceholder": "Enter search content",
-      "openWithNewOpen": "Open in new window"
+      "openWithNewOpen": "Open in new window",
+      "loading": "Loading..."
     },
     "systemMonitor": {
       "cpuState": "CPU status",

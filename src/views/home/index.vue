@@ -3,7 +3,8 @@ import { VueDraggable } from 'vue-draggable-plus'
 import { NBackTop, NButton, NButtonGroup, NDropdown, NModal, NSkeleton, NSpin, useDialog, useMessage } from 'naive-ui'
 import { nextTick, onMounted, onActivated, ref, h } from 'vue'
 import { AppIcon, AppStarter, EditItem, NotePad } from './components'
-import { Clock, SearchBox, SystemMonitor } from '@/components/deskModule'
+import { Clock, SystemMonitor } from '@/components/deskModule'
+import SearchBoxWithSuggestions from '@/components/deskModule/SearchBoxWithSuggestions/index.vue'
 import { SvgIcon } from '@/components/common'
 import { deletes, getListByGroupId, saveSort } from '@/api/panel/itemIcon'
 
@@ -1190,7 +1191,7 @@ function handleChangeNetwork(targetMode: PanelStateNetworkModeEnum) {
             </div>
           </div>
           <div v-if="panelState.panelConfig.searchBoxShow" class="flex mt-[20px] mx-auto sm:w-full lg:w-[80%]">
-            <SearchBox @itemSearch="itemFrontEndSearch" />
+            <SearchBoxWithSuggestions @itemSearch="itemFrontEndSearch" />
           </div>
         </div>
 

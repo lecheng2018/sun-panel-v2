@@ -264,7 +264,8 @@
     },
     "searchBox": {
       "inputPlaceholder": "请输入搜索内容",
-      "openWithNewOpen": "新窗口打开"
+      "openWithNewOpen": "新窗口打开",
+      "loading": "加载中..."
     },
     "systemMonitor": {
       "cpuState": "CPU状态",
