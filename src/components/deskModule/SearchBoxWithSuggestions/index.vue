@@ -43,6 +43,9 @@ const searchInputRef = ref<HTMLInputElement | null>(null)
 const dropdownRef = ref<HTMLDivElement | null>(null)
 const suggestionOptions = ref<SuggestionItem[]>([])
 
+// 键盘导航相关
+const selectedIndex = ref(-1)
+
 // 加载状态
 const loadingSuggestions = ref(false)
 
@@ -79,6 +82,9 @@ const filteredSuggestions = computed(() => {
 
 // 监听搜索词变化，获取动态提示词
 watch(searchTerm, async (newVal) => {
+  // 重置选中索引
+  selectedIndex.value = -1
+  
   if (newVal) {
     await fetchSuggestions(newVal)
   } else {
@@ -376,11 +382,43 @@ const handleItemSearch = () => {
   suggestionsVisible.value = true
 }
 
+// 处理键盘事件
+const handleKeyDown = (e: KeyboardEvent) => {
+  // 只有在提示框可见且有提示词时才处理键盘事件
+  if (!suggestionsVisible.value || filteredSuggestions.value.length === 0) return
+
+  // 下箭头：选中下一项
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    selectedIndex.value = (selectedIndex.value + 1) % filteredSuggestions.value.length
+  }
+  // 上箭头：选中上一项
+  else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    selectedIndex.value = (selectedIndex.value - 1 + filteredSuggestions.value.length) % filteredSuggestions.value.length
+  }
+  // 回车：搜索选中项
+  else if (e.key === 'Enter') {
+    e.preventDefault()
+    if (selectedIndex.value >= 0 && filteredSuggestions.value.length > 0) {
+      handleSuggestionSelect(filteredSuggestions.value[selectedIndex.value].value)
+    } else {
+      handleSearchClick()
+    }
+  }
+  // ESC：关闭提示框
+  else if (e.key === 'Escape') {
+    suggestionsVisible.value = false
+    selectedIndex.value = -1
+  }
+}
+
 function handleClearSearchTerm() {
   searchTerm.value = ''
   emits('itemSearch', searchTerm.value)
   suggestionsVisible.value = false
   suggestionOptions.value = []
+  selectedIndex.value = -1
 }
 
 onMounted(() => {
@@ -407,6 +445,7 @@ onMounted(() => {
         @focus="onFocus"
         @blur="onBlur"
         @input="handleItemSearch"
+        @keydown="handleKeyDown"
         class="search-input"
       >
 
@@ -437,8 +476,10 @@ onMounted(() => {
           v-for="(suggestion, index) in filteredSuggestions"
           :key="index"
           class="suggestion-item px-4 py-2 cursor-pointer hover:bg-white/10 transition-colors flex items-center"
+          :class="{ 'active': index === selectedIndex }"
           :style="{ color: textColor }"
           @mousedown="handleSuggestionSelect(suggestion.value)"
+          @mouseenter="selectedIndex = index"
         >
           <SvgIcon icon="mdi:magnify" class="mr-2" />
           {{ suggestion.value }}
@@ -524,5 +565,10 @@ input {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* 选中项高亮样式 */
+.suggestion-item.active {
+  background-color: rgba(255, 255, 255, 0.2) !important;
 }
 </style>
