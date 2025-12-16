@@ -3,7 +3,7 @@
     <NCard class="card login-card" bordered>
       <div class="card-title">
         <div class="text-center text-2xl mb-1">
-          <NGradientText :gradient="['#3b82f6', '#8b5cf6']">
+          <NGradientText :gradient="{ deg: 90, from: '#3b82f6', to: '#8b5cf6' }">
             Sun Panel V2
           </NGradientText>
         </div>
@@ -55,7 +55,7 @@
           <NInput
             v-model:value="form.email"
             placeholder="请输入邮箱"
-            type="email"
+            type="text"
           >
             <template #prefix>
               <SvgIcon icon="email" class="w-4 h-4 text-slate-500" />
