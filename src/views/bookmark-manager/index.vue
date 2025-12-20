@@ -161,7 +161,7 @@
 						</div>
 						<template v-for="item in filteredBookmarks" :key="item.id">
 							<!-- 相对定位容器,用于包含绝对定位的插入横线 -->
-							<div 
+							<div
 								class="relative py-[2px]"
 								:draggable="true"
 								@dragstart="handleDragStart($event, item)"
@@ -310,7 +310,6 @@ interface TreeOption {
 	ParentUrl?: string; // 父节点URL（缓存时使用）
 }
 
-const  BOOKMARKS_FULL_CACHE_KEY= 'bookmarksFullCache'
 const  BOOKMARKS_CACHE_KEY= 'bookmarksTreeCache'// 完整书签数据缓存 (与首页缓存键一致)
 
 const router = useRouter()
@@ -707,7 +706,7 @@ const folderTreeOptions = computed(() => {
       .map(node => {
         // 判断是否为文件夹
         const isFolder = node.isFolder || (!node.isLeaf && !node.bookmark?.url);
-        
+
         // 如果不是文件夹，跳过
         if (!isFolder) return null;
 
@@ -726,7 +725,7 @@ const folderTreeOptions = computed(() => {
       })
       .filter(node => node !== null);
   };
-  
+
   // 基础根目录选项
   const rootOption = {
     key: '0',
@@ -870,7 +869,7 @@ const renderTreeLabel = ({ option }: { option: any }) => {
     // 检查当前节点是否被选中
     const isSelected = selectedKeysRef.value.includes(option.key);
     const iconColor = isSelected ? '#4285F4' : '#9CA3AF'; // 选中时蓝色，未选中时灰色
-    
+
     content.push(
       h('svg', {
         xmlns: 'http://www.w3.org/2000/svg',
@@ -1083,12 +1082,12 @@ function handleDragOver(event: DragEvent, item?: any) {
 	// 阻止默认行为并设置允许放置
 	event.preventDefault();
 	// event.stopPropagation(); // 允许冒泡，以便容器也能处理dragover事件，防止禁用光标闪烁
-	
+
 	// 始终设置为move效果,避免显示禁用光标
 	if (event.dataTransfer) {
 		event.dataTransfer.dropEffect = 'move';
 	}
-	
+
 	if (!item || !event.currentTarget) {
 		dragOverTarget.value = null;
 		dragInsertPosition.value = null;
@@ -1177,11 +1176,11 @@ watch(selectedFolder, (newFolderId) => {
       for (const node of nodes) {
         const nodeId = String(node.key);
         const currentPath = [...path, nodeId];
-        
+
         if (nodeId === targetId) {
           return currentPath;
         }
-        
+
         if (node.children && node.children.length > 0) {
           const found = buildPath(node.children, targetId, currentPath);
           if (found) return found;
@@ -1189,13 +1188,13 @@ watch(selectedFolder, (newFolderId) => {
       }
       return null;
     };
-    
+
     const path = buildPath(bookmarkTree.value, newFolderId);
     if (path) {
       // 展开路径上的所有父文件夹(不包括当前文件夹本身)
       const parentPath = path.slice(0, -1);
       defaultExpandedKeys.value = [...new Set([...defaultExpandedKeys.value, ...parentPath])];
-      
+
       // 高亮当前文件夹
       selectedKeysRef.value = [newFolderId];
     }
@@ -1609,17 +1608,6 @@ async function handleDrop(event: DragEvent, targetItem: any) {
 			// 存储完整的书签树数据（包含排序信息）到缓存，使用与页面加载一致的格式
 			const processedCache = fullData.value.map(processCacheNode);
 			ss.set(BOOKMARKS_CACHE_KEY, processedCache);
-			// 存储文件夹树结构到缓存
-			ss.set(BOOKMARKS_FULL_CACHE_KEY, safeFolderTreeData);
-
-			// 调试：检查缓存是否正确存储
-
-						// 存储文件夹树结构到缓存
-						ss.set(BOOKMARKS_FULL_CACHE_KEY, safeFolderTreeData);
-
-						// 调试：检查缓存是否正确存储
-
-
 			// === 步骤2: 异步同步到服务器 ===
 
 			// 在后台异步更新服务器,不阻塞UI
@@ -1732,7 +1720,7 @@ async function saveBookmarkChanges() {
 			// 根据当前选择的folderId获取parentUrl
 				let parentUrl = '0';
 				const selectedFolderId = currentEditBookmark.value.folderId ? currentEditBookmark.value.folderId.toString() : '0';
-				
+
 				if (selectedFolderId !== '0') {
 					// 尝试从 allFolders 中查找
 					const selectedFolder = allFolders.value.find(folder => folder.value === selectedFolderId);
@@ -2257,7 +2245,7 @@ function convertServerTreeToFrontendTree(serverTree: any[]): TreeOption[] {
 				...node,
 				parentUrl: node.parentUrl || '0'
 			};
-			
+
 			// 优化：如果是书签，从rawNode中移除iconJson以节省缓存空间
 			if (!isFolder && rawNode.iconJson) {
 				delete rawNode.iconJson;
