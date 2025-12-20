@@ -1576,13 +1576,19 @@ async function handleDrop(event: DragEvent, targetItem: any) {
 					const parentUrl = node.rawNode?.parentUrl || node.ParentUrl || '0';
 
 					// Process the current node - Explicitly select properties to avoid circular references or unwanted properties during serialization
+					// 优化：从rawNode中移除iconJson以减少缓存大小
+					const rawNode = { ...node.rawNode };
+					if (!node.isFolder && rawNode.iconJson) {
+						delete rawNode.iconJson;
+					}
+
 					const processedNode: TreeOption = {
 						key: node.key,
 						label: node.label,
 						isLeaf: node.isLeaf,
 						isFolder: node.isFolder,
 						bookmark: node.bookmark,
-						rawNode: node.rawNode,
+						rawNode: rawNode,
 						disabledExpand: node.disabledExpand,
 						sort: node.sort,
 						ParentUrl: parentUrl.toString(),
@@ -2251,6 +2257,11 @@ function convertServerTreeToFrontendTree(serverTree: any[]): TreeOption[] {
 				...node,
 				parentUrl: node.parentUrl || '0'
 			};
+			
+			// 优化：如果是书签，从rawNode中移除iconJson以节省缓存空间
+			if (!isFolder && rawNode.iconJson) {
+				delete rawNode.iconJson;
+			}
 		}
 
 		const hasChildren = Array.isArray(children) && children.length > 0;
@@ -2319,6 +2330,16 @@ function buildBookmarkTree(bookmarks: any[]): TreeOption[] {
 		const parentUrl = isFrontendFormat ? (bookmark.rawNode?.parentUrl || bookmark.ParentUrl || '0') : (bookmark.parentUrl || bookmark.folderId || '0');
 		const sort = isFrontendFormat ? (bookmark.bookmark?.sort || 0) : (bookmark.sort || 0);
 
+
+		// 优化：构建rawNode时，如果是书签，移除iconJson以节省缓存空间
+		const rawNodeData = {
+			...bookmark,
+			parentUrl: parentUrl
+		};
+		if (!isFolder && rawNodeData.iconJson) {
+			delete rawNodeData.iconJson;
+		}
+
 		const node: TreeOption = {
 			key: nodeKey,
 			label: title || '未命名',
@@ -2331,10 +2352,7 @@ function buildBookmarkTree(bookmarks: any[]): TreeOption[] {
 				iconJson: iconJson,
 				sort: sort
 			},
-			rawNode: {
-				...bookmark,
-				parentUrl: parentUrl
-			},
+			rawNode: rawNodeData,
 			children: [],
 			disabledExpand: true
 		};
