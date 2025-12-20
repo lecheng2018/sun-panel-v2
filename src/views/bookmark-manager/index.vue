@@ -1562,9 +1562,6 @@ async function handleDrop(event: DragEvent, targetItem: any) {
 
 
 
-			// 更新缓存数据
-			const folderTreeData = filterFoldersOnly(bookmarkTree.value);
-			const safeFolderTreeData = Array.isArray(folderTreeData) ? folderTreeData : [];
 
 			// 调试：检查数据是否正确更新
 
