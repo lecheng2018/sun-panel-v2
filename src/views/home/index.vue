@@ -681,7 +681,10 @@ async function updateItemIconGroupByNet(itemIconGroupIndex: number, itemIconGrou
 
 // 组件激活时刷新书签数据确保显示最新顺序
 onActivated(() => {
-  loadBookmarkTree(false);
+  // 延迟执行，优先保证页面切换流畅
+  setTimeout(() => {
+    loadBookmarkTree(false);
+  }, 20);
 });
 
 function handleRightMenuSelect(key: string | number) {

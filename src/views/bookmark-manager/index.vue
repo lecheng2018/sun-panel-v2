@@ -349,7 +349,10 @@ function collapsePanel() {
 
 // 组件挂载时加载书签数据
 onMounted(() => {
-	refreshBookmarks();
+	// 延迟执行，优先保证页面切换流畅
+	setTimeout(() => {
+		refreshBookmarks();
+	}, 20);
 
 	// 添加全局事件监听器
 	document.addEventListener('mousemove', handleMouseMove);
@@ -1572,10 +1575,16 @@ async function handleDrop(event: DragEvent, targetItem: any) {
 					// Extract parentUrl correctly from rawNode or ParentUrl property
 					const parentUrl = node.rawNode?.parentUrl || node.ParentUrl || '0';
 
-					// Process the current node
+					// Process the current node - Explicitly select properties to avoid circular references or unwanted properties during serialization
 					const processedNode: TreeOption = {
-						...node,
+						key: node.key,
+						label: node.label,
+						isLeaf: node.isLeaf,
 						isFolder: node.isFolder,
+						bookmark: node.bookmark,
+						rawNode: node.rawNode,
+						disabledExpand: node.disabledExpand,
+						sort: node.sort,
 						ParentUrl: parentUrl.toString(),
 						children: [] // 先设置为空数组
 					};
