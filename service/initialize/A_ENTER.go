@@ -93,6 +93,8 @@ func InitApp() error {
 
 	// 异步更新item_icon表中的非base64格式图标
 	go UpdateIconBase64()
+	// 异步更新bookmark表中的parent_id字段，将老数据的parent_url转换为parent_id
+	go UpdateBookmarkParentId()
 
 	return nil
 }

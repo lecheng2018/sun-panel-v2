@@ -62,34 +62,34 @@ func (a *Bookmark) AddMultiple(c *gin.Context) {
 		}
 	}
 
-	// 按parentUrl分组处理书签的sort值
-	// 1. 首先获取每个parentUrl下的当前最大sort值
-	parentUrlMaxSort := make(map[string]int)
+	// 按parentId分组处理书签的sort值
+	// 1. 首先获取每个parentId下的当前最大sort值
+	parentIdMaxSort := make(map[uint]int)
 
-	// 收集所有需要处理的parentUrl
-	parentUrls := make(map[string]bool)
+	// 收集所有需要处理的parentId
+	parentIds := make(map[uint]bool)
 	for _, b := range bookmarks {
-		parentUrls[b.ParentUrl] = true
+		parentIds[b.ParentId] = true
 	}
 
-	// 为每个parentUrl获取当前最大sort值
-	for parentUrl := range parentUrls {
+	// 为每个parentId获取当前最大sort值
+	for parentId := range parentIds {
 		var maxSort int
-		query := global.Db.Model(&models.Bookmark{}).Where("user_id = ? AND parent_url = ?", userInfo.ID, parentUrl)
+		query := global.Db.Model(&models.Bookmark{}).Where("user_id = ? AND parent_id = ?", userInfo.ID, parentId)
 		query.Select("COALESCE(MAX(sort), 0) as max_sort").Scan(&maxSort)
-		parentUrlMaxSort[parentUrl] = maxSort
+		parentIdMaxSort[parentId] = maxSort
 	}
 
-	// 2. 为每个parentUrl下的书签设置递增的sort值
-	// 先按parentUrl分组
-	bookmarksByParentUrl := make(map[string][]int) // key: parentUrl, value: 索引列表
+	// 2. 为每个parentId下的书签设置递增的sort值
+	// 先按parentId分组
+	bookmarksByParentId := make(map[uint][]int) // key: parentId, value: 索引列表
 	for i, b := range bookmarks {
-		bookmarksByParentUrl[b.ParentUrl] = append(bookmarksByParentUrl[b.ParentUrl], i)
+		bookmarksByParentId[b.ParentId] = append(bookmarksByParentId[b.ParentId], i)
 	}
 
 	// 为每组书签设置递增的sort值
-	for parentUrl, indexes := range bookmarksByParentUrl {
-		currentMaxSort := parentUrlMaxSort[parentUrl]
+	for parentId, indexes := range bookmarksByParentId {
+		currentMaxSort := parentIdMaxSort[parentId]
 		for i, idx := range indexes {
 			bookmarks[idx].Sort = currentMaxSort + i + 1
 		}
@@ -103,6 +103,26 @@ func (a *Bookmark) AddMultiple(c *gin.Context) {
 		if err := global.Db.Create(&uniqueBookmarks).Error; err != nil {
 			apiReturn.Error(c, "添加书签失败")
 			return
+		}
+	}
+
+	// 处理新插入书签的parent_id关系（对于HTML导入的书签）
+	// 1. 构建标题到ID的映射
+	titleToIdMap := make(map[string]uint)
+	for _, b := range uniqueBookmarks {
+		if b.IsFolder == 1 {
+			titleToIdMap[b.Title] = b.ID
+		}
+	}
+
+	// 2. 更新子书签的parent_id
+	for i, b := range uniqueBookmarks {
+		if b.IsFolder == 0 && b.ParentUrl != "0" && b.ParentUrl != "" && b.ParentUrl != "null" {
+			if parentId, exists := titleToIdMap[b.ParentUrl]; exists {
+				uniqueBookmarks[i].ParentId = parentId
+				// 更新数据库中的parent_id
+				global.Db.Model(&models.Bookmark{}).Where("id = ? AND user_id = ?", b.ID, userInfo.ID).Update("parent_id", parentId)
+			}
 		}
 	}
 
@@ -391,10 +411,10 @@ func (a *Bookmark) Add(c *gin.Context) {
 	// 设置用户ID
 	req.UserId = userInfo.ID
 
-	// 获取parentUrl下的最大sort值并+1作为新的sort值
+	// 获取parentId下的最大sort值并+1作为新的sort值
 	var maxSort int
 	// 使用COALESCE确保如果没有记录时返回0
-	query := global.Db.Model(&models.Bookmark{}).Where("user_id = ? AND parent_url = ?", userInfo.ID, req.ParentUrl)
+	query := global.Db.Model(&models.Bookmark{}).Where("user_id = ? AND parent_id = ?", userInfo.ID, req.ParentId)
 	query.Select("COALESCE(MAX(sort), 0) as max_sort").Scan(&maxSort)
 
 	// 设置新的sort值
@@ -470,7 +490,7 @@ func sortChildNodes(node *BookmarkNode) {
 	}
 }
 
-// buildBookmarkTree 根据ParentUrl构建书签树
+// buildBookmarkTree 根据ParentId构建书签树
 func buildBookmarkTree(bookmarks []models.Bookmark) []*BookmarkNode {
 	// 创建节点映射表，用于快速查找父节点
 	nodeMap := make(map[string]*BookmarkNode) // 使用string类型键，兼容各种类型的ID
@@ -486,34 +506,22 @@ func buildBookmarkTree(bookmarks []models.Bookmark) []*BookmarkNode {
 		}
 		// 使用ID的字符串形式作为节点的唯一标识
 		nodeMap[strconv.Itoa(int(bookmark.ID))] = node
-		// 同时也存储文件夹的标题，以便处理导入的HTML书签
-		if bookmark.IsFolder == 1 {
-			nodeMap[bookmark.Title] = node
-		}
 	}
 
 	// 构建树形结构
 	for _, bookmark := range bookmarks {
 		node := nodeMap[strconv.Itoa(int(bookmark.ID))]
-		parentUrl := bookmark.ParentUrl
+		parentId := bookmark.ParentId
 
-		// 如果是根节点（ParentUrl为0），添加到根节点列表
-		if parentUrl == "0" || parentUrl == "" || parentUrl == "null" {
+		// 如果是根节点（ParentId为0或空），添加到根节点列表
+		if parentId == 0 {
 			rootNodes = append(rootNodes, node)
 		} else {
 			// 查找父节点并添加当前节点到父节点的子节点列表
-			// 尝试将ParentUrl作为ID查找
-			parentNode, exists := nodeMap[parentUrl]
-			if !exists {
-				// 如果找不到，尝试将ParentUrl转换为整数后再查找
-				if parentId, err := strconv.Atoi(parentUrl); err == nil {
-					parentNode, exists = nodeMap[strconv.Itoa(parentId)]
-				}
-			}
-			if exists {
+			if parentNode, exists := nodeMap[strconv.Itoa(int(parentId))]; exists {
 				parentNode.Children = append(parentNode.Children, node)
 			} else {
-				// 如果找不到父节点，将当前节点作为根节点
+				// 如果找不到父节点，添加到根节点列表
 				rootNodes = append(rootNodes, node)
 			}
 		}
@@ -540,6 +548,7 @@ func (a *Bookmark) Update(c *gin.Context) {
 		Url       string `json:"url" binding:"required"`
 		LanUrl    string `json:"lanUrl"`
 		ParentUrl string `json:"parentUrl"`
+		ParentId  uint   `json:"parentId"`
 		Sort      int    `json:"sort"`
 	}
 	var req UpdateReq
@@ -562,18 +571,19 @@ func (a *Bookmark) Update(c *gin.Context) {
 		"Url":       req.Url,
 		"LanUrl":    req.LanUrl,
 		"ParentUrl": req.ParentUrl,
-		"UpdatedAt": time.Now(),
+		"ParentId":  req.ParentId,
+		// "UpdatedAt": time.Now(), // 移除UpdatedAt更新
 	}
 
-	// 如果parentUrl改变了，需要重新计算sort值
-	if bookmark.ParentUrl != req.ParentUrl {
-		// 获取新parentUrl下的最大sort值并+1
+	// 如果parentId改变了，需要重新计算sort值
+	if bookmark.ParentId != req.ParentId {
+		// 获取新parentId下的最大sort值并+1
 		var maxSort int
-		query := global.Db.Model(&models.Bookmark{}).Where("user_id = ? AND parent_url = ?", userInfo.ID, req.ParentUrl)
+		query := global.Db.Model(&models.Bookmark{}).Where("user_id = ? AND parent_id = ?", userInfo.ID, req.ParentId)
 		query.Select("COALESCE(MAX(sort), 0) as max_sort").Scan(&maxSort)
 		updateData["Sort"] = maxSort + 1
 	} else {
-		// 如果parentUrl没变，保留原有的sort逻辑
+		// 如果parentId没变，保留原有的sort逻辑
 		updateData["Sort"] = req.Sort
 	}
 
@@ -592,6 +602,7 @@ func (a *Bookmark) Update(c *gin.Context) {
 		updatedBookmark.Url = req.Url
 		updatedBookmark.LanUrl = req.LanUrl
 		updatedBookmark.ParentUrl = req.ParentUrl
+		updatedBookmark.ParentId = req.ParentId
 		updatedBookmark.Sort = updateData["Sort"].(int)
 		apiReturn.SuccessData(c, updatedBookmark)
 	} else {
@@ -642,8 +653,8 @@ func (a *Bookmark) Deletes(c *gin.Context) {
 
 		// 如果是文件夹，需要删除其下所有的书签和子文件夹
 		if bookmark.IsFolder == 1 {
-			// 递归获取所有子项ID，使用文件夹的Url作为parentUrl（对于文件夹，Url = Title）
-			childIds := getAllChildBookmarkIds(userInfo.ID, bookmark.Url)
+			// 递归获取所有子项ID，使用文件夹的ID作为parent_id
+			childIds := getAllChildBookmarkIds(userInfo.ID, bookmark.ID)
 			allIdsToDelete = append(allIdsToDelete, childIds...)
 		}
 	}
@@ -664,20 +675,20 @@ func (a *Bookmark) Deletes(c *gin.Context) {
 }
 
 // getAllChildBookmarkIds 递归获取文件夹下所有子书签和子文件夹的ID
-func getAllChildBookmarkIds(userId uint, parentUrl string) []int {
+func getAllChildBookmarkIds(userId uint, parentId uint) []int {
 	var childIds []int
 	var childBookmarks []models.Bookmark
 
 	// 查询直接子项
-	if err := global.Db.Where("user_id = ? AND parent_url = ?", userId, parentUrl).Find(&childBookmarks).Error; err != nil {
+	if err := global.Db.Where("user_id = ? AND parent_id = ?", userId, parentId).Find(&childBookmarks).Error; err != nil {
 		return childIds
 	}
 
 	for _, child := range childBookmarks {
 		childIds = append(childIds, int(child.ID))
-		// 如果子项也是文件夹，递归获取其子项，使用文件夹的Url作为parentUrl（对于文件夹，Url = Title）
+		// 如果子项也是文件夹，递归获取其子项
 		if child.IsFolder == 1 {
-			grandChildIds := getAllChildBookmarkIds(userId, child.Url)
+			grandChildIds := getAllChildBookmarkIds(userId, child.ID)
 			childIds = append(childIds, grandChildIds...)
 		}
 	}

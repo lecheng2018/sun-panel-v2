@@ -18,11 +18,10 @@ const (
 )
 
 type BaseModel struct {
-	gorm.Model
-	// Db *gorm.DB `gorm:"_"`
+	// gorm.Model // 移除gorm.Model，避免自动添加DeletedAt等字段
 	ID        uint      `gorm:"primarykey" json:"id"`
 	CreatedAt time.Time `json:"createTime"`
-	UpdatedAt time.Time `json:"updateTime"`
+	UpdatedAt time.Time `json:"updateTime"` // 恢复UpdatedAt字段，因为其他模型依赖它
 	// DeletedAt DeletedAt `gorm:"index"`
 }
 
@@ -30,6 +29,12 @@ type BaseModelNoId struct {
 	CreatedAt time.Time      `json:"createTime"`
 	UpdatedAt time.Time      `json:"updateTime"`
 	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+
+type BaseModelNoUpdated struct {
+	ID        uint      `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time `json:"createTime"`
+	// 不包含UpdatedAt字段
 }
 
 // 分页的结构体

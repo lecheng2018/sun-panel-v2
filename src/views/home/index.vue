@@ -262,7 +262,7 @@ function convertServerTreeToFrontendTree(serverTree: any[]): any[] {
     const isFolder = isFrontendFormat ? (node.isFolder ? 1 : 0) : node.isFolder;
     const url = isFrontendFormat ? (node.bookmark?.url || '') : node.url;
     const iconJson = isFrontendFormat ? (node.bookmark?.iconJson || '') : node.iconJson;
-    const parentUrl = isFrontendFormat ? (node.rawNode?.parentUrl || node.ParentUrl || '0') : node.ParentUrl;
+    const parentId = isFrontendFormat ? (node.rawNode?.parentId || node.ParentId || '0') : (node.parentId || node.ParentId || '0');
 
     // 提取排序字段
     const sortOrder = node.sort || 0;
@@ -271,7 +271,7 @@ function convertServerTreeToFrontendTree(serverTree: any[]): any[] {
     let bookmarkObj = undefined;
     if (isFolder !== 1 && url) {
       // 确保folderId是字符串类型
-      const folderId = parentUrl !== undefined ? String(parentUrl) : null;
+      const folderId = parentId !== undefined ? String(parentId) : null;
       bookmarkObj = {
         id: nodeId,
         title: title,
@@ -370,7 +370,7 @@ function buildBookmarkTree(bookmarks: any[]): any[] {
     const bookmarkUrl = isFrontendFormat ? (item.bookmark?.url || '') : (item.url || '');
     const bookmarkIconJson = isFrontendFormat ? (item.bookmark?.iconJson || '') : (item.iconJson || '');
     // 确保folderId是字符串类型
-    const folderId = isFrontendFormat ? (item.rawNode?.parentUrl || item.ParentUrl || '0') : (item.ParentUrl || '0');
+    const folderId = isFrontendFormat ? (item.rawNode?.parentId || item.ParentId || '0') : (item.parentId || item.ParentId || '0');
     const stringFolderId = String(folderId);
     // 获取排序字段
     const sortOrder = isFrontendFormat ? (item.rawNode?.sort || 0) : (item.sort || 0);

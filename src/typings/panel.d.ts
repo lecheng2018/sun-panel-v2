@@ -5,7 +5,8 @@ declare namespace Panel {
     }
 
 	interface bookmarkInfo extends ItemInfo {
-		parentUrl: string
+		parentUrl?: string
+		parentId?: number
 	}
 
     interface ItemInfo extends Common.InfoBase {
