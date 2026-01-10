@@ -1,18 +1,19 @@
 package panel
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
-	"os"
-	"path"
 	"strings"
 	"sun-panel/api/api_v1/common/apiData/commonApiStructs"
 	"sun-panel/api/api_v1/common/apiData/panelApiStructs"
 	"sun-panel/api/api_v1/common/apiReturn"
 	"sun-panel/api/api_v1/common/base"
 	"sun-panel/global"
-	"sun-panel/lib/cmn"
 	"sun-panel/lib/siteFavicon"
 	"sun-panel/models"
 	"time"
@@ -195,9 +196,46 @@ func (a *ItemIcon) SaveSort(c *gin.Context) {
 	apiReturn.Success(c)
 }
 
-// 支持获取并直接下载对方网站图标到服务器
+// 将远程图片转换为base64
+func getImageBase64(imageUrl string) (string, error) {
+	// 创建HTTP客户端
+	client := &http.Client{
+		Timeout: 10 * time.Second, // 10秒超时
+	}
+
+	// 发送HTTP GET请求
+	resp, err := client.Get(imageUrl)
+	if err != nil {
+		return "", fmt.Errorf("failed to get image: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 检查响应状态码
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get image, status code: %d", resp.StatusCode)
+	}
+
+	// 读取响应体
+	buffer := bytes.Buffer{}
+	if _, err := io.Copy(&buffer, resp.Body); err != nil {
+		return "", fmt.Errorf("failed to read image: %w", err)
+	}
+
+	// 获取Content-Type
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "image/png" // 默认使用PNG
+	}
+
+	// 转换为base64
+	base64Str := base64.StdEncoding.EncodeToString(buffer.Bytes())
+
+	// 返回data URL格式
+	return fmt.Sprintf("data:%s;base64,%s", contentType, base64Str), nil
+}
+
+// 支持获取并直接返回base64格式的图标
 func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
-	userInfo, _ := base.GetCurrentUserInfo(c)
 	req := panelApiStructs.ItemIconGetSiteFaviconReq{}
 
 	if err := c.ShouldBindBodyWith(&req, binding.JSON); err != nil {
@@ -205,68 +243,78 @@ func (a *ItemIcon) GetSiteFavicon(c *gin.Context) {
 		return
 	}
 	resp := panelApiStructs.ItemIconGetSiteFaviconResp{}
-	fullUrl := ""
-	if iconUrl, err := siteFavicon.GetOneFaviconURL(req.Url); err != nil {
-		apiReturn.Error(c, "acquisition failed: get ico error:"+err.Error())
+
+	// 解析URL获取域名和协议，只解析一次
+	parsedURL, parseErr := url.Parse(req.Url)
+	if parseErr != nil {
+		apiReturn.Error(c, "acquisition failed:"+parseErr.Error())
 		return
-	} else {
-		fullUrl = iconUrl
 	}
 
-	parsedURL, err := url.Parse(req.Url)
+	var fullUrl string
+
+	// 1. 首先尝试从网站本身获取favicon
+	iconUrl, err := siteFavicon.GetOneFaviconURL(req.Url)
 	if err != nil {
-		apiReturn.Error(c, "acquisition failed:"+err.Error())
-		return
-	}
+		// 2. 如果失败，使用谷歌的favicon服务作为回退
+		global.Logger.Debug("Failed to get favicon from site, trying Google API:", err)
 
-	protocol := parsedURL.Scheme
-	global.Logger.Debug("protocol:", protocol)
-	global.Logger.Debug("fullUrl:", fullUrl)
-
-	// 如果URL以双斜杠（//）开头，则使用当前页面协议
-	if strings.HasPrefix(fullUrl, "//") {
-		fullUrl = protocol + "://" + fullUrl[2:]
-	} else if !strings.HasPrefix(fullUrl, "http://") && !strings.HasPrefix(fullUrl, "https://") {
-		// 如果URL既不以http://开头也不以https://开头，则默认为http协议
-		fullUrl = "http://" + fullUrl
-	}
-	global.Logger.Debug("fullUrl:", fullUrl)
-	// 去除图标的get参数
-	{
-		parsedIcoURL, err := url.Parse(fullUrl)
-		if err != nil {
-			apiReturn.Error(c, "acquisition failed: parsed ico URL :"+err.Error())
-			return
-		}
-		fullUrl = parsedIcoURL.Scheme + "://" + parsedIcoURL.Host + parsedIcoURL.Path
-	}
-	global.Logger.Debug("fullUrl:", fullUrl)
-
-	// 生成保存目录
-	configUpload := global.Config.GetValueString("base", "source_path")
-	savePath := fmt.Sprintf("%s/%d/%d/%d/", configUpload, time.Now().Year(), time.Now().Month(), time.Now().Day())
-	isExist, _ := cmn.PathExists(savePath)
-	if !isExist {
-		os.MkdirAll(savePath, os.ModePerm)
-	}
-
-	// 下载
-	var imgInfo *os.File
-	{
-		var err error
-		if imgInfo, err = siteFavicon.DownloadImage(fullUrl, savePath, 1024*1024); err != nil {
-			apiReturn.Error(c, "acquisition failed: download"+err.Error())
-			return
+		// 使用谷歌的favicon服务作为回退
+		domain := parsedURL.Host
+		fullUrl = fmt.Sprintf("https://www.google.com/s2/favicons?domain=%s&sz=64", domain)
+		global.Logger.Debug("Using Google favicon service for domain:", domain)
+	} else {
+		// 处理获取到的favicon URL
+		if strings.HasPrefix(iconUrl, "//") {
+			// 协议相对URL，只添加当前协议
+			fullUrl = parsedURL.Scheme + ":" + iconUrl
+			global.Logger.Debug("Protocol relative URL, converted to:", fullUrl)
+		} else if strings.HasPrefix(iconUrl, "/") {
+			// 绝对路径，需要添加完整域名
+			fullUrl = parsedURL.Scheme + "://" + parsedURL.Host + iconUrl
+			global.Logger.Debug("Absolute path, converted to:", fullUrl)
+		} else if strings.HasPrefix(iconUrl, "http://") || strings.HasPrefix(iconUrl, "https://") {
+			// 完整URL，直接使用
+			fullUrl = iconUrl
+			global.Logger.Debug("Full URL, using directly:", fullUrl)
+		} else {
+			// 相对路径，需要添加完整域名和路径前缀
+			basePath := parsedURL.Path
+			if !strings.HasSuffix(basePath, "/") {
+				// 获取目录部分
+				lastSlash := strings.LastIndex(basePath, "/")
+				if lastSlash != -1 {
+					basePath = basePath[:lastSlash+1]
+				} else {
+					basePath = "/"
+				}
+			}
+			fullUrl = parsedURL.Scheme + "://" + parsedURL.Host + basePath + iconUrl
+			global.Logger.Debug("Relative path, converted to:", fullUrl)
 		}
 	}
 
-	// 保存到数据库
-	ext := path.Ext(fullUrl)
-	mFile := models.File{}
-	if _, err := mFile.AddFile(userInfo.ID, parsedURL.Host, ext, imgInfo.Name()); err != nil {
-		apiReturn.ErrorDatabase(c, err.Error())
-		return
+	// 移除URL中的查询参数，因为有些图标服务器不支持
+	if strings.Contains(fullUrl, "?") {
+		fullUrl = strings.Split(fullUrl, "?")[0]
+		global.Logger.Debug("Removed query params, final URL:", fullUrl)
 	}
-	resp.IconUrl = imgInfo.Name()[1:]
+
+	// 获取base64格式的图标
+	base64Icon, getErr := getImageBase64(fullUrl)
+	if getErr != nil {
+		// 如果获取失败，使用谷歌的favicon服务作为最终回退
+		global.Logger.Debug("Failed to get favicon from URL, trying Google API as final fallback:", getErr)
+		domain := parsedURL.Host
+		googleUrl := fmt.Sprintf("https://www.google.com/s2/favicons?domain=%s&sz=64", domain)
+		base64Icon, getErr = getImageBase64(googleUrl)
+		if getErr != nil {
+			apiReturn.Error(c, "acquisition failed:"+getErr.Error())
+			return
+		}
+	}
+
+	// 返回base64格式的图标
+	resp.IconUrl = base64Icon
 	apiReturn.SuccessData(c, resp)
 }

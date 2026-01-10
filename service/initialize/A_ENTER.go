@@ -91,6 +91,9 @@ func InitApp() error {
 	global.SystemSetting = systemSettingCache.InItSystemSettingCache()
 	global.SystemMonitor = global.NewCache[interface{}](5*time.Hour, -1, "systemMonitorCache")
 
+	// 异步更新item_icon表中的非base64格式图标
+	go UpdateIconBase64()
+
 	return nil
 }
 

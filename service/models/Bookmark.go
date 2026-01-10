@@ -9,6 +9,7 @@ type Bookmark struct {
 	Sort      int    `gorm:"type:int(11)" json:"sort"`
 	IsFolder  int    `gorm:"type:int(1)" json:"isFolder"`
 	ParentUrl string `gorm:"type:varchar(1000)" json:"parentUrl"`
+	ParentId  uint   `gorm:"type:int(11)" json:"parentId"`
 	UserId    uint   `json:"userId"`
 	User      User   `json:"user"`
 }

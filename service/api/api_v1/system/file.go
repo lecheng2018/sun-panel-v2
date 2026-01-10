@@ -1,7 +1,13 @@
 package system
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
+	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"gorm.io/gorm"
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -12,53 +18,75 @@ import (
 	"sun-panel/lib/cmn"
 	"sun-panel/models"
 	"time"
-
-	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
-	"gorm.io/gorm"
 )
 
 type FileApi struct{}
 
 func (a *FileApi) UploadImg(c *gin.Context) {
-	userInfo, _ := base.GetCurrentUserInfo(c)
-	configUpload := global.Config.GetValueString("base", "source_path")
+	// 获取上传的文件
 	f, err := c.FormFile("imgfile")
 	if err != nil {
 		apiReturn.ErrorByCode(c, 1300)
 		return
-	} else {
-		fileExt := strings.ToLower(path.Ext(f.Filename))
-		agreeExts := []string{
-			".png",
-			".jpg",
-			".gif",
-			".jpeg",
-			".webp",
-			".svg",
-			".ico",
-		}
-
-		if !cmn.InArray(agreeExts, fileExt) {
-			apiReturn.ErrorByCode(c, 1301)
-			return
-		}
-		fileName := cmn.Md5(fmt.Sprintf("%s%s", f.Filename, time.Now().String()))
-		fildDir := fmt.Sprintf("%s/%d/%d/%d/", configUpload, time.Now().Year(), time.Now().Month(), time.Now().Day())
-		isExist, _ := cmn.PathExists(fildDir)
-		if !isExist {
-			os.MkdirAll(fildDir, os.ModePerm)
-		}
-		filepath := fmt.Sprintf("%s%s%s", fildDir, fileName, fileExt)
-		c.SaveUploadedFile(f, filepath)
-
-		// 像数据库添加记录
-		mFile := models.File{}
-		mFile.AddFile(userInfo.ID, f.Filename, fileExt, filepath)
-		apiReturn.SuccessData(c, gin.H{
-			"imageUrl": filepath[1:],
-		})
 	}
+
+	// 检查文件类型
+	fileExt := strings.ToLower(path.Ext(f.Filename))
+	agreeExts := []string{
+		".png",
+		".jpg",
+		".gif",
+		".jpeg",
+		".webp",
+		".svg",
+		".ico",
+	}
+
+	if !strings.Contains(strings.Join(agreeExts, "|"), fileExt) {
+		apiReturn.ErrorByCode(c, 1301)
+		return
+	}
+
+	// 打开上传的文件
+	file, err := f.Open()
+	if err != nil {
+		apiReturn.ErrorByCode(c, 1300)
+		return
+	}
+	defer file.Close()
+
+	// 读取文件内容
+	buffer := bytes.NewBuffer(nil)
+	if _, err := io.Copy(buffer, file); err != nil {
+		apiReturn.ErrorByCode(c, 1300)
+		return
+	}
+
+	// 获取文件的MIME类型
+	contentType := "image/png" // 默认使用PNG
+	switch fileExt {
+	case ".jpg", ".jpeg":
+		contentType = "image/jpeg"
+	case ".gif":
+		contentType = "image/gif"
+	case ".webp":
+		contentType = "image/webp"
+	case ".svg":
+		contentType = "image/svg+xml"
+	case ".ico":
+		contentType = "image/x-icon"
+	}
+
+	// 转换为base64
+	base64Str := base64.StdEncoding.EncodeToString(buffer.Bytes())
+
+	// 返回data URL格式
+	dataURL := fmt.Sprintf("data:%s;base64,%s", contentType, base64Str)
+
+	// 直接返回base64数据
+	apiReturn.SuccessData(c, gin.H{
+		"imageUrl": dataURL,
+	})
 }
 
 func (a *FileApi) UploadFiles(c *gin.Context) {

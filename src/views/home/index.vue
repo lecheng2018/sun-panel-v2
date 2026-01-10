@@ -898,11 +898,63 @@ onBeforeRouteUpdate(() => {
   loadBookmarkTree(true)
 })
 
+// 递归搜索书签树
+function searchBookmarksInTree(nodes: any[], keyword: string): Panel.ItemInfo[] {
+  const results: Panel.ItemInfo[] = []
+
+  function traverse(node: any) {
+    // 如果是书签（不是文件夹），检查是否匹配
+    if (!node.isFolder && node.bookmark) {
+      const bookmark = node.bookmark
+      const title = bookmark.title?.toLowerCase() || ''
+      const url = bookmark.url?.toLowerCase() || ''
+
+      // 检查是否匹配关键词
+      if (title.includes(keyword) || url.includes(keyword)) {
+        // 转换为Panel.ItemInfo类型
+        const itemInfo: Panel.ItemInfo = {
+          id: Number(bookmark.id),
+          title: bookmark.title || '',
+          url: bookmark.url || '',
+          icon: {
+            itemType: 2, // 使用图片类型图标
+            src: bookmark.iconJson || '',
+            text: '',
+            backgroundColor: ''
+          },
+          openMethod: 0, // 默认打开方式
+          lanOnly: 0, // 非仅内网
+          sort: bookmark.sort || 0
+        }
+        results.push(itemInfo)
+      }
+    }
+
+    // 递归遍历子节点
+    if (node.children && node.children.length > 0) {
+      for (const child of node.children) {
+        traverse(child)
+      }
+    }
+  }
+
+  // 遍历所有根节点
+  for (const node of nodes) {
+    traverse(node)
+  }
+
+  return results
+}
+
 // 前端搜索过滤
 function itemFrontEndSearch(keyword?: string) {
-  keyword = keyword?.trim()
-  if (keyword !== '' && panelState.panelConfig.searchBoxSearchIcon) {
+  const trimmedKeyword = keyword?.trim() || ''
+  if (trimmedKeyword !== '' && panelState.panelConfig.searchBoxSearchIcon) {
     const filteredData = ref<ItemGroup[]>([])
+    const lowerCaseKeyword = trimmedKeyword.toLowerCase()
+    const allHomepageBookmarks: Panel.ItemInfo[] = []
+
+    // 1. 先搜索原有图标（首页书签）
     for (let i = 0; i < items.value.length; i++) {
       const element = items.value[i].items?.filter((item: Panel.ItemInfo) => {
         // 首先应用网络模式过滤
@@ -911,14 +963,37 @@ function itemFrontEndSearch(keyword?: string) {
 
         // 然后应用搜索关键词过滤
         return (
-          item.title.toLowerCase().includes(keyword?.toLowerCase() ?? '')
-          || item.url.toLowerCase().includes(keyword?.toLowerCase() ?? '')
-          || item.description?.toLowerCase().includes(keyword?.toLowerCase() ?? '')
+          item.title.toLowerCase().includes(lowerCaseKeyword)
+          || item.url.toLowerCase().includes(lowerCaseKeyword)
+          || item.description?.toLowerCase().includes(lowerCaseKeyword)
         )
       })
-      if (element && element.length > 0)
+      if (element && element.length > 0) {
         filteredData.value.push({ items: element, hoverStatus: false })
+        // 收集所有首页书签，用于去重
+        allHomepageBookmarks.push(...element)
+      }
     }
+
+    // 2. 搜索左侧书签
+    const leftBookmarkResults = searchBookmarksInTree(treeData.value, lowerCaseKeyword)
+
+    // 3. 去重：如果左侧书签和首页书签有相同URL，去除左侧书签
+    const homepageUrls = new Set(allHomepageBookmarks.map(item => item.url.toLowerCase()))
+    const uniqueLeftBookmarks = leftBookmarkResults.filter(bookmark => {
+      const bookmarkUrl = bookmark.url.toLowerCase()
+      return !homepageUrls.has(bookmarkUrl)
+    })
+
+    // 4. 将去重后的左侧书签结果添加到搜索结果的开头
+    if (uniqueLeftBookmarks.length > 0) {
+      filteredData.value.unshift({
+        items: uniqueLeftBookmarks,
+        hoverStatus: false,
+        id: -1 // 特殊ID表示书签结果组
+      })
+    }
+
     filterItems.value = filteredData.value
   }
   else {
@@ -1504,7 +1579,7 @@ html {
     grid-template-columns: repeat(auto-fill, minmax(min(100px, 100%), 1fr));
     gap: 12px;
   }
-  
+
   .icon-small-box {
     grid-template-columns: repeat(auto-fill, minmax(min(60px, 100%), 1fr));
     gap: 12px;
@@ -1516,7 +1591,7 @@ html {
     grid-template-columns: repeat(auto-fill, minmax(min(100px, 100%), 1fr));
     gap: 10px;
   }
-  
+
   .icon-small-box {
     grid-template-columns: repeat(auto-fill, minmax(min(60px, 100%), 1fr));
     gap: 10px;
@@ -1528,7 +1603,7 @@ html {
     grid-template-columns: repeat(auto-fill, minmax(min(100px, 100%), 1fr));
     gap: 8px;
   }
-  
+
   .icon-small-box {
     grid-template-columns: repeat(auto-fill, minmax(min(60px, 100%), 1fr));
     gap: 8px;

@@ -132,14 +132,18 @@ func GetOneFaviconURLAndUpload(urlStr string) (string, bool) {
 func getFaviconURL(url string) ([]string, error) {
 	var icons []string
 	icons = make([]string, 0)
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: 5 * time.Second, // 设置超时时间
+	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return icons, err
 	}
 
-	// 设置User-Agent头字段，模拟浏览器请求
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3")
+	// 设置User-Agent头字段，模拟现代浏览器请求
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -157,19 +161,21 @@ func getFaviconURL(url string) ([]string, error) {
 		return icons, err
 	}
 
-	// 查找所有link标签，筛选包含rel属性为"icon"的标签
+	// 查找所有link标签，支持更多rel属性值
 	doc.Find("link").Each(func(i int, s *goquery.Selection) {
 		rel, _ := s.Attr("rel")
 		href, _ := s.Attr("href")
 
-		if strings.Contains(rel, "icon") && href != "" {
-			// fmt.Println(href)
+		// 支持多种rel属性值，包括icon, shortcut icon, apple-touch-icon等
+		relLower := strings.ToLower(rel)
+		if (strings.Contains(relLower, "icon") || strings.Contains(relLower, "shortcut")) && href != "" {
 			icons = append(icons, href)
 		}
 	})
 
+	// 如果没有找到link标签，尝试添加默认的favicon.ico路径
 	if len(icons) == 0 {
-		return icons, errors.New("favicon not found on the page")
+		icons = append(icons, "/favicon.ico")
 	}
 
 	return icons, nil
