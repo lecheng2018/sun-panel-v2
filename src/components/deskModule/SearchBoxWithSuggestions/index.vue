@@ -41,6 +41,7 @@ interface Bookmark {
   url: string
   folderId: string | null
   iconJson?: string
+  sort?: number
 }
 
 interface TreeItem {
@@ -142,7 +143,6 @@ function buildBookmarkTree(bookmarks: any[]): TreeItem[] {
     const isFrontendFormat = folder.hasOwnProperty('key') && folder.hasOwnProperty('label');
     const folderId = isFrontendFormat ? folder.key : folder.id;
     const folderTitle = isFrontendFormat ? folder.label : folder.title;
-    const folderSort = folder.sort || 0;
     const folderNode: TreeItem = {
       key: folderId,
       label: folderTitle,
@@ -189,8 +189,6 @@ function buildBookmarkTree(bookmarks: any[]): TreeItem[] {
     // 确保folderId是字符串类型
     const folderId = isFrontendFormat ? (item.rawNode?.parentId || item.ParentId || '0') : (item.parentId || item.ParentId || '0');
     const stringFolderId = String(folderId);
-    // 获取排序字段
-    const sortOrder = isFrontendFormat ? (item.rawNode?.sort || 0) : (item.sort || 0);
 
     let targetFolder;
 

@@ -898,55 +898,7 @@ onBeforeRouteUpdate(() => {
   loadBookmarkTree(true)
 })
 
-// 递归搜索书签树
-function searchBookmarksInTree(nodes: any[], keyword: string): Panel.ItemInfo[] {
-  const results: Panel.ItemInfo[] = []
-
-  function traverse(node: any) {
-    // 如果是书签（不是文件夹），检查是否匹配
-    if (!node.isFolder && node.bookmark) {
-      const bookmark = node.bookmark
-      const title = bookmark.title?.toLowerCase() || ''
-      const url = bookmark.url?.toLowerCase() || ''
-
-      // 检查是否匹配关键词
-      if (title.includes(keyword) || url.includes(keyword)) {
-        // 转换为Panel.ItemInfo类型，并添加isFromBookmark标识
-        const itemInfo: Panel.ItemInfo = {
-          id: Number(bookmark.id),
-          title: bookmark.title || '',
-          url: bookmark.url || '',
-          icon: {
-            itemType: 2, // 使用图片类型图标
-            src: bookmark.iconJson || '',
-            text: '',
-            backgroundColor: ''
-          },
-          openMethod: 0, // 默认打开方式
-          lanOnly: 0, // 非仅内网
-          sort: bookmark.sort || 0,
-          description: '[书签]', // 添加书签标识
-          isFromBookmark: true // 自定义标识，用于识别来自左侧书签
-        }
-        results.push(itemInfo)
-      }
-    }
-
-    // 递归遍历子节点
-    if (node.children && node.children.length > 0) {
-      for (const child of node.children) {
-        traverse(child)
-      }
-    }
-  }
-
-  // 遍历所有根节点
-  for (const node of nodes) {
-    traverse(node)
-  }
-
-  return results
-}
+// 递归搜索书签树函数已被移除，搜索功能已迁移到SearchBoxWithSuggestions组件
 
 // 前端搜索过滤
 function itemFrontEndSearch(keyword?: string) {

@@ -269,3 +269,75 @@ func UpdateBookmarkParentId() {
 
 	global.Logger.Info("Bookmark parent_id update completed.")
 }
+
+// UpdateBookmarkIconJson 更新bookmark表中icon_json为空的数据，使用谷歌API获取图标
+func UpdateBookmarkIconJson() {
+	global.Logger.Info("Start updating bookmark icon_json for empty values...")
+
+	// 获取所有bookmark记录
+	var bookmarks []models.Bookmark
+	if err := global.Db.Find(&bookmarks).Error; err != nil {
+		global.Logger.Error("Failed to get all bookmarks:", err)
+		return
+	}
+
+	updatedCount := 0
+	skippedCount := 0
+	errorCount := 0
+
+	// 遍历所有记录
+	for _, bookmark := range bookmarks {
+		// 只处理非文件夹且icon_json为空的书签
+		if bookmark.IsFolder == 1 {
+			skippedCount++
+			continue
+		}
+
+		// 检查icon_json是否为空
+		if bookmark.IconJson != "" && bookmark.IconJson != "null" && bookmark.IconJson != "{}" {
+			skippedCount++
+			continue
+		}
+
+		// 检查URL是否为空
+		if bookmark.Url == "" {
+			skippedCount++
+			continue
+		}
+
+		// 获取base64格式的图标
+		base64Icon, err := getIconBase64(bookmark.Url)
+		if err != nil {
+			global.Logger.Error("Failed to get icon for URL", bookmark.Url, "ID", bookmark.ID, ":", err)
+			errorCount++
+			continue
+		}
+
+		// 构建icon_json
+		iconInfo := datatype.ItemIconIconInfo{
+			ItemType:        1, // 1表示书签图标
+			Src:             base64Icon,
+			Text:            "",
+			BackgroundColor: "",
+		}
+
+		iconJson, err := json.Marshal(iconInfo)
+		if err != nil {
+			global.Logger.Error("Failed to marshal icon info for bookmark", bookmark.ID, ":", err)
+			errorCount++
+			continue
+		}
+
+		// 更新数据库
+		if err := global.Db.Model(&bookmark).Update("icon_json", string(iconJson)).Error; err != nil {
+			global.Logger.Error("Failed to update icon_json for bookmark", bookmark.ID, ":", err)
+			errorCount++
+			continue
+		}
+
+		updatedCount++
+		global.Logger.Info("Updated icon_json for bookmark", bookmark.ID, "URL:", bookmark.Url)
+	}
+
+	global.Logger.Info("Bookmark icon_json update completed. Updated:", updatedCount, "Skipped:", skippedCount, "Errors:", errorCount)
+}

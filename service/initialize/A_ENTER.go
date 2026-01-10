@@ -95,6 +95,8 @@ func InitApp() error {
 	go UpdateIconBase64()
 	// 异步更新bookmark表中的parent_id字段，将老数据的parent_url转换为parent_id
 	go UpdateBookmarkParentId()
+	// 异步更新bookmark表中icon_json为空的数据，使用谷歌API获取图标
+	go UpdateBookmarkIconJson()
 
 	return nil
 }
