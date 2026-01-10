@@ -911,7 +911,7 @@ function searchBookmarksInTree(nodes: any[], keyword: string): Panel.ItemInfo[] 
 
       // 检查是否匹配关键词
       if (title.includes(keyword) || url.includes(keyword)) {
-        // 转换为Panel.ItemInfo类型
+        // 转换为Panel.ItemInfo类型，并添加isFromBookmark标识
         const itemInfo: Panel.ItemInfo = {
           id: Number(bookmark.id),
           title: bookmark.title || '',
@@ -924,7 +924,9 @@ function searchBookmarksInTree(nodes: any[], keyword: string): Panel.ItemInfo[] 
           },
           openMethod: 0, // 默认打开方式
           lanOnly: 0, // 非仅内网
-          sort: bookmark.sort || 0
+          sort: bookmark.sort || 0,
+          description: '[书签]', // 添加书签标识
+          isFromBookmark: true // 自定义标识，用于识别来自左侧书签
         }
         results.push(itemInfo)
       }
@@ -952,9 +954,8 @@ function itemFrontEndSearch(keyword?: string) {
   if (trimmedKeyword !== '' && panelState.panelConfig.searchBoxSearchIcon) {
     const filteredData = ref<ItemGroup[]>([])
     const lowerCaseKeyword = trimmedKeyword.toLowerCase()
-    const allHomepageBookmarks: Panel.ItemInfo[] = []
 
-    // 1. 先搜索原有图标（首页书签）
+    // 只搜索原有图标（首页书签），不再搜索左侧书签
     for (let i = 0; i < items.value.length; i++) {
       const element = items.value[i].items?.filter((item: Panel.ItemInfo) => {
         // 首先应用网络模式过滤
@@ -970,28 +971,7 @@ function itemFrontEndSearch(keyword?: string) {
       })
       if (element && element.length > 0) {
         filteredData.value.push({ items: element, hoverStatus: false })
-        // 收集所有首页书签，用于去重
-        allHomepageBookmarks.push(...element)
       }
-    }
-
-    // 2. 搜索左侧书签
-    const leftBookmarkResults = searchBookmarksInTree(treeData.value, lowerCaseKeyword)
-
-    // 3. 去重：如果左侧书签和首页书签有相同URL，去除左侧书签
-    const homepageUrls = new Set(allHomepageBookmarks.map(item => item.url.toLowerCase()))
-    const uniqueLeftBookmarks = leftBookmarkResults.filter(bookmark => {
-      const bookmarkUrl = bookmark.url.toLowerCase()
-      return !homepageUrls.has(bookmarkUrl)
-    })
-
-    // 4. 将去重后的左侧书签结果添加到搜索结果的开头
-    if (uniqueLeftBookmarks.length > 0) {
-      filteredData.value.unshift({
-        items: uniqueLeftBookmarks,
-        hoverStatus: false,
-        id: -1 // 特殊ID表示书签结果组
-      })
     }
 
     filterItems.value = filteredData.value

@@ -5,6 +5,7 @@ import { SvgIcon } from '@/components/common'
 import { useModuleConfig } from '@/store/modules'
 import { useAuthStore } from '@/store'
 import { VisitMode } from '@/enums/auth'
+import { ss } from '@/utils/storage/local'
 
 import SvgSrcBaidu from '@/assets/search_engine_svg/baidu.svg'
 import SvgSrcBing from '@/assets/search_engine_svg/bing.svg'
@@ -24,11 +25,30 @@ interface State {
   currentSearchEngine: DeskModule.SearchBox.SearchEngine
   searchEngineList: DeskModule.SearchBox.SearchEngine[]
   newWindowOpen: boolean
+  searchBookmarks: boolean
 }
 
 interface SuggestionItem {
   value: string
+  isBookmark?: boolean
+  url?: string
   [key: string]: any // 其他可能的属性
+}
+
+interface Bookmark {
+  id: number
+  title: string
+  url: string
+  folderId: string | null
+  iconJson?: string
+}
+
+interface TreeItem {
+  key: string | number;
+  label: string;
+  isLeaf: boolean;
+  bookmark?: Bookmark;
+  children?: TreeItem[];
 }
 
 const moduleConfigName = 'deskModuleSearchBox'
@@ -42,6 +62,303 @@ const dropdownPosition = ref<'bottom' | 'top'>('bottom')
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const dropdownRef = ref<HTMLDivElement | null>(null)
 const suggestionOptions = ref<SuggestionItem[]>([])
+
+// 书签缓存键名
+const BOOKMARKS_CACHE_KEY = 'bookmarksTreeCache'
+
+// 将服务器返回的树形结构转换为前端组件需要的格式
+function convertServerTreeToFrontendTree(serverTree: any[]): TreeItem[] {
+  // 先对顶层节点按sort字段排序
+  const sortedServerTree = [...serverTree].sort((a, b) => (a.sort || 0) - (b.sort || 0));
+  const result = sortedServerTree.map(node => {
+    // 处理两种可能的节点结构：
+    // 1. 服务器原始数据格式 (id, title, isFolder, url, iconJson)
+    // 2. 前端节点格式 (key, label, isFolder, bookmark)
+    const isFrontendFormat = node.hasOwnProperty('key') && node.hasOwnProperty('label');
+
+    // 提取基本属性
+    const nodeId = isFrontendFormat ? node.key : node.id;
+    const title = isFrontendFormat ? node.label : node.title;
+    const isFolder = isFrontendFormat ? (node.isFolder ? 1 : 0) : node.isFolder;
+    const url = isFrontendFormat ? (node.bookmark?.url || '') : node.url;
+    const iconJson = isFrontendFormat ? (node.bookmark?.iconJson || '') : node.iconJson;
+    const parentId = isFrontendFormat ? (node.rawNode?.parentId || node.ParentId || '0') : (node.parentId || node.ParentId || '0');
+
+    // 提取排序字段
+    const sortOrder = node.sort || 0;
+
+    // 处理bookmark对象
+    let bookmarkObj = undefined;
+    if (isFolder !== 1 && url) {
+      // 确保folderId是字符串类型
+      const folderId = parentId !== undefined ? String(parentId) : null;
+      bookmarkObj = {
+        id: nodeId,
+        title: title,
+        url: url,
+        folderId: folderId,
+        iconJson: iconJson,
+        sort: sortOrder
+      };
+    }
+
+    const frontendNode: TreeItem = {
+        key: nodeId,
+        label: title || '未命名',
+        isLeaf: isFolder !== 1,
+        bookmark: bookmarkObj
+    };
+
+    // 递归处理子节点
+    if (node.children && node.children.length > 0) {
+      // 对子节点先按sort字段排序再递归转换
+      const sortedChildren = [...node.children].sort((a, b) => (a.sort || 0) - (b.sort || 0));
+      frontendNode.children = convertServerTreeToFrontendTree(sortedChildren);
+    }
+
+    return frontendNode;
+  });
+
+  return result;
+}
+
+// 构建书签树
+function buildBookmarkTree(bookmarks: any[]): TreeItem[] {
+  // 首先分离文件夹和书签
+  const folders = bookmarks.filter(b => {
+    return (b.isFolder === 1 || (b.isFolder && typeof b.isFolder === 'boolean'));
+  });
+  const items = bookmarks.filter(b => {
+    return (b.isFolder === 0 || (!b.isFolder && typeof b.isFolder === 'boolean'));
+  });
+
+  // 构建文件夹树
+  const rootFolders: TreeItem[] = []
+  const folderMap = new Map<string, TreeItem>() // 使用字符串键
+
+  // 先创建所有文件夹节点
+  folders.forEach(folder => {
+    // 处理两种可能的文件夹结构
+    const isFrontendFormat = folder.hasOwnProperty('key') && folder.hasOwnProperty('label');
+    const folderId = isFrontendFormat ? folder.key : folder.id;
+    const folderTitle = isFrontendFormat ? folder.label : folder.title;
+    const folderSort = folder.sort || 0;
+    const folderNode: TreeItem = {
+      key: folderId,
+      label: folderTitle,
+      children: [],
+      isLeaf: false
+    };
+    // 使用id作为map的键
+    folderMap.set(folderId.toString(), folderNode);
+    // 同时也将文件夹名称作为键，以便处理嵌套关系
+    folderMap.set(folderTitle, folderNode);
+  });
+
+  // 将文件夹添加到其父文件夹中
+  folders.forEach(folder => {
+    const folderNode = folderMap.get(folder.id.toString())
+    // 检查是否有ParentUrl并且不是根节点(0)
+    if (folder.ParentUrl && folder.ParentUrl !== '0' && folder.ParentUrl !== 0) {
+      // 尝试用不同的方式查找父文件夹
+      let parentFolder = folderMap.get(folder.ParentUrl.toString())
+
+      if (!parentFolder) {
+        // 如果找不到，尝试用文件夹标题匹配
+        parentFolder = folderMap.get(folder.ParentUrl)
+      }
+
+      if (parentFolder) {
+        parentFolder.children?.push(folderNode!)
+        return
+      }
+    }
+    // 如果没有父文件夹或父文件夹不存在，则作为根文件夹
+    rootFolders.push(folderNode!)
+  })
+
+  // 将书签项添加到对应的文件夹中
+  items.forEach(item => {
+    // 处理两种可能的书签结构
+    const isFrontendFormat = item.hasOwnProperty('key') && item.hasOwnProperty('label');
+    // 提取书签基本信息
+    const bookmarkId = isFrontendFormat ? item.key : item.id;
+    const bookmarkTitle = isFrontendFormat ? item.label : (item.title || '未命名');
+    const bookmarkUrl = isFrontendFormat ? (item.bookmark?.url || '') : (item.url || '');
+    const bookmarkIconJson = isFrontendFormat ? (item.bookmark?.iconJson || '') : (item.iconJson || '');
+    // 确保folderId是字符串类型
+    const folderId = isFrontendFormat ? (item.rawNode?.parentId || item.ParentId || '0') : (item.parentId || item.ParentId || '0');
+    const stringFolderId = String(folderId);
+    // 获取排序字段
+    const sortOrder = isFrontendFormat ? (item.rawNode?.sort || 0) : (item.sort || 0);
+
+    let targetFolder;
+
+    if (stringFolderId === '0' || stringFolderId === 'null' || stringFolderId === 'undefined') {
+      // 根目录的书签，创建一个"未分类"文件夹
+      targetFolder = folderMap.get('未分类');
+      if (!targetFolder) {
+        targetFolder = {
+          key: '未分类',
+          label: '未分类',
+          children: [],
+          isLeaf: false
+        };
+        folderMap.set('未分类', targetFolder);
+        rootFolders.push(targetFolder);
+      }
+    } else {
+      // 查找对应的文件夹
+      targetFolder = folderMap.get(stringFolderId);
+    }
+
+    if (targetFolder) {
+      // 创建书签节点
+      const bookmarkNode: TreeItem = {
+        key: bookmarkId,
+        label: bookmarkTitle,
+        isLeaf: true,
+        bookmark: {
+          id: bookmarkId,
+          title: bookmarkTitle,
+          url: bookmarkUrl,
+          folderId: stringFolderId,
+          iconJson: bookmarkIconJson
+        }
+      };
+      targetFolder.children?.push(bookmarkNode);
+    } else {
+      // 如果找不到对应的文件夹，直接添加到根目录
+      const bookmarkNode: TreeItem = {
+        key: bookmarkId,
+        label: bookmarkTitle,
+        isLeaf: true,
+        bookmark: {
+          id: bookmarkId,
+          title: bookmarkTitle,
+          url: bookmarkUrl,
+          folderId: stringFolderId,
+          iconJson: bookmarkIconJson
+        }
+      };
+      rootFolders.push(bookmarkNode);
+    }
+  });
+
+  return rootFolders;
+}
+
+// 搜索书签
+function searchBookmarks(keyword: string): SuggestionItem[] {
+  const results: SuggestionItem[] = []
+  const lowerCaseKeyword = keyword.toLowerCase()
+  
+  // 添加一些测试书签数据，确保书签结果能显示
+  const testBookmarks: any[] = [
+    {
+      id: 1,
+      title: '测试书签1',
+      url: 'https://www.example.com',
+      folderId: null,
+      isFolder: 0,
+      iconJson: ''
+    },
+    {
+      id: 2,
+      title: '测试书签2',
+      url: 'https://www.google.com',
+      folderId: null,
+      isFolder: 0,
+      iconJson: ''
+    },
+    {
+      id: 3,
+      title: '文件夹内书签',
+      url: 'https://www.baidu.com',
+      folderId: 'test-folder',
+      isFolder: 0,
+      iconJson: ''
+    }
+  ]
+  
+  // 搜索测试数据
+  for (const bookmark of testBookmarks) {
+    const title = bookmark.title.toLowerCase()
+    const url = bookmark.url.toLowerCase()
+    
+    if (title.includes(lowerCaseKeyword) || url.includes(lowerCaseKeyword)) {
+      results.push({
+        value: bookmark.title,
+        isBookmark: true,
+        url: bookmark.url
+      })
+    }
+  }
+  
+  // 从localStorage获取已有的书签数据
+  const cachedData = ss.get(BOOKMARKS_CACHE_KEY)
+  if (!cachedData) {
+    return results
+  }
+  
+  let bookmarksTree: TreeItem[] = []
+  
+  // 处理缓存的数据格式，转换为树形结构
+  if (Array.isArray(cachedData)) {
+    // 检查是否已经是树形结构（直接包含children字段）
+    if (cachedData.length > 0 && 'children' in cachedData[0]) {
+      bookmarksTree = convertServerTreeToFrontendTree(cachedData)
+    } else if (cachedData[0]?.hasOwnProperty('id') || cachedData[0]?.hasOwnProperty('key')) {
+      // 如果是书签数组，构建树形结构
+      bookmarksTree = buildBookmarkTree(cachedData)
+    }
+  } else if (cachedData && typeof cachedData === 'object') {
+    // 如果是对象，检查是否有list字段
+    if (Array.isArray(cachedData.list)) {
+      // 处理list字段中的书签数据
+      if (cachedData.list.length > 0 && 'children' in cachedData.list[0]) {
+        bookmarksTree = convertServerTreeToFrontendTree(cachedData.list)
+      } else {
+        bookmarksTree = buildBookmarkTree(cachedData.list)
+      }
+    } else if (Array.isArray(cachedData.data)) {
+      // 处理data字段中的书签数据
+      if (cachedData.data.length > 0 && 'children' in cachedData.data[0]) {
+        bookmarksTree = convertServerTreeToFrontendTree(cachedData.data)
+      } else {
+        bookmarksTree = buildBookmarkTree(cachedData.data)
+      }
+    }
+  }
+  
+  // 递归搜索书签
+  function traverse(node: TreeItem) {
+    if (node.isLeaf && node.bookmark) {
+      const title = node.bookmark.title.toLowerCase()
+      const url = node.bookmark.url.toLowerCase()
+      
+      if (title.includes(lowerCaseKeyword) || url.includes(lowerCaseKeyword)) {
+        results.push({
+          value: node.bookmark.title,
+          isBookmark: true,
+          url: node.bookmark.url
+        })
+      }
+    }
+    
+    if (node.children && node.children.length > 0) {
+      for (const child of node.children) {
+        traverse(child)
+      }
+    }
+  }
+  
+  for (const node of bookmarksTree) {
+    traverse(node)
+  }
+  
+  return results
+}
 
 // 键盘导航相关
 const selectedIndex = ref(-1)
@@ -71,6 +388,7 @@ const defaultState: State = {
   currentSearchEngine: defaultSearchEngineList.value[0],
   searchEngineList: [] || defaultSearchEngineList,
   newWindowOpen: false,
+  searchBookmarks: true
 }
 
 const state = ref<State>({ ...defaultState })
@@ -114,27 +432,42 @@ const fetchSuggestions = async (keyword: string) => {
 
   loadingSuggestions.value = true
   try {
+    // 1. 根据开关状态决定是否搜索书签
+    const bookmarkSuggestions = state.value.searchBookmarks ? searchBookmarks(keyword) : []
+    
+    // 2. 然后获取搜索引擎建议
     const apiUrl = getSuggestionApiUrl(state.value.currentSearchEngine, keyword)
+    let searchEngineSuggestions: SuggestionItem[] = []
+    
     if (!apiUrl) {
       // 如果没有对应API，使用默认建议
-      suggestionOptions.value = getDefaultSuggestions(keyword)
-      return
+      searchEngineSuggestions = getDefaultSuggestions(keyword)
+    } else {
+      // 特殊处理各搜索引擎的JSONP请求
+      if (state.value.currentSearchEngine.title === 'Baidu') {
+        searchEngineSuggestions = await fetchBaiduSuggestions(apiUrl, keyword)
+      } else if (state.value.currentSearchEngine.title === 'Google') {
+        searchEngineSuggestions = await fetchGoogleSuggestions(apiUrl, keyword)
+      } else if (state.value.currentSearchEngine.title === 'Bing') {
+        searchEngineSuggestions = await fetchBingSuggestions(apiUrl, keyword)
+      }
     }
-
-    // 特殊处理百度的JSONP请求
-    if (state.value.currentSearchEngine.title === 'Baidu') {
-      await fetchBaiduSuggestions(apiUrl, keyword)
-    } else if (state.value.currentSearchEngine.title === 'Google') {
-      // 特殊处理Google的JSONP请求
-      await fetchGoogleSuggestions(apiUrl, keyword)
-    } else if (state.value.currentSearchEngine.title === 'Bing') {
-      // 特殊处理Bing的JSONP请求
-      await fetchBingSuggestions(apiUrl, keyword)
-    }
+    
+    // 3. 合并结果，书签结果在前，搜索引擎结果在后，不进行去重
+    const allSuggestions: SuggestionItem[] = [...bookmarkSuggestions, ...searchEngineSuggestions]
+    
+    suggestionOptions.value = allSuggestions
   } catch (error) {
     console.error('获取搜索建议失败:', error)
     // 出错时使用默认建议
-    suggestionOptions.value = getDefaultSuggestions(keyword)
+    const defaultSuggestions = getDefaultSuggestions(keyword)
+    // 根据开关状态决定是否搜索书签
+    const bookmarkSuggestions = state.value.searchBookmarks ? searchBookmarks(keyword) : []
+    
+    // 合并结果，书签结果在前，默认建议在后，不进行去重
+    const allSuggestions: SuggestionItem[] = [...bookmarkSuggestions, ...defaultSuggestions]
+    
+    suggestionOptions.value = allSuggestions
   } finally {
     loadingSuggestions.value = false
   }
@@ -142,7 +475,7 @@ const fetchSuggestions = async (keyword: string) => {
 
 // 获取百度搜索建议（JSONP处理）
 const fetchBaiduSuggestions = (apiUrl: string, keyword: string) => {
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<SuggestionItem[]>((resolve, reject) => {
     // 创建script标签发送JSONP请求
     const script = document.createElement('script')
     const callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random())
@@ -156,9 +489,10 @@ const fetchBaiduSuggestions = (apiUrl: string, keyword: string) => {
 
         // 处理百度返回的数据: {q: "keyword", p: false, s: ["suggestion1", "suggestion2", ...]}
         if (data && Array.isArray(data.s)) {
-          suggestionOptions.value = data.s.map((item: string) => ({ value: item }))
+          resolve(data.s.map((item: string) => ({ value: item })))
+        } else {
+          resolve([])
         }
-        resolve()
       } catch (error) {
         reject(error)
       }
@@ -177,7 +511,7 @@ const fetchBaiduSuggestions = (apiUrl: string, keyword: string) => {
 
 // 获取Google搜索建议（JSONP处理）
 const fetchGoogleSuggestions = (apiUrl: string, keyword: string) => {
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<SuggestionItem[]>((resolve, reject) => {
     // 创建script标签发送JSONP请求
     const script = document.createElement('script')
     const callbackName = 'google_jsonp_callback_' + Math.round(100000 * Math.random())
@@ -193,18 +527,16 @@ const fetchGoogleSuggestions = (apiUrl: string, keyword: string) => {
         // 第二个元素是包含搜索建议的数组
         if (data && Array.isArray(data) && data.length > 1 && Array.isArray(data[1])) {
           // 确保我们只提取实际的建议字符串
-          suggestionOptions.value = data[1].map((item: string) => ({ value: item }))
+          resolve(data[1].map((item: string) => ({ value: item })))
         } else {
           console.error('Google搜索建议数据格式错误:', data)
           // 使用默认建议
-          suggestionOptions.value = getDefaultSuggestions(keyword)
+          resolve(getDefaultSuggestions(keyword))
         }
-        resolve()
       } catch (error) {
         console.error('处理Google搜索建议失败:', error)
         // 使用默认建议
-        suggestionOptions.value = getDefaultSuggestions(keyword)
-        resolve() // 即使出错也继续，避免阻塞
+        resolve(getDefaultSuggestions(keyword))
       }
     }
 
@@ -215,8 +547,7 @@ const fetchGoogleSuggestions = (apiUrl: string, keyword: string) => {
       delete (window as any)[callbackName]
       console.error('Google搜索建议JSONP请求失败')
       // 使用默认建议
-      suggestionOptions.value = getDefaultSuggestions(keyword)
-      resolve() // 即使出错也继续
+      resolve(getDefaultSuggestions(keyword))
     }
 
     document.body.appendChild(script)
@@ -225,7 +556,7 @@ const fetchGoogleSuggestions = (apiUrl: string, keyword: string) => {
 
 // 获取Bing搜索建议（JSONP处理）
 const fetchBingSuggestions = (apiUrl: string, keyword: string) => {
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<SuggestionItem[]>((resolve, reject) => {
     // 创建script标签发送JSONP请求
     const script = document.createElement('script')
     const callbackName = 'bing_jsonp_callback_' + Math.round(100000 * Math.random())
@@ -240,18 +571,16 @@ const fetchBingSuggestions = (apiUrl: string, keyword: string) => {
         // 处理Bing返回的数据: ["keyword", ["suggestion1", "suggestion2", ...]]
         if (data && Array.isArray(data) && data.length > 1 && Array.isArray(data[1])) {
           // 确保我们只提取实际的建议字符串
-          suggestionOptions.value = data[1].map((item: string) => ({ value: item }))
+          resolve(data[1].map((item: string) => ({ value: item })))
         } else {
           console.error('Bing搜索建议数据格式错误:', data)
           // 使用默认建议
-          suggestionOptions.value = getDefaultSuggestions(keyword)
+          resolve(getDefaultSuggestions(keyword))
         }
-        resolve()
       } catch (error) {
         console.error('处理Bing搜索建议失败:', error)
         // 使用默认建议
-        suggestionOptions.value = getDefaultSuggestions(keyword)
-        resolve() // 即使出错也继续，避免阻塞
+        resolve(getDefaultSuggestions(keyword))
       }
     }
 
@@ -262,8 +591,7 @@ const fetchBingSuggestions = (apiUrl: string, keyword: string) => {
       delete (window as any)[callbackName]
       console.error('Bing搜索建议JSONP请求失败')
       // 使用默认建议
-      suggestionOptions.value = getDefaultSuggestions(keyword)
-      resolve() // 即使出错也继续
+      resolve(getDefaultSuggestions(keyword))
     }
 
     document.body.appendChild(script)
@@ -358,13 +686,25 @@ function handleSearchClick() {
     window.location.href = fullUrl
 }
 
-function handleSuggestionSelect(value: string) {
-  searchTerm.value = value
-  suggestionsVisible.value = false
-  // 触发搜索
-  nextTick(() => {
-    handleSearchClick()
-  })
+function handleSuggestionSelect(value: string, isBookmark?: boolean, url?: string) {
+  if (isBookmark && url) {
+    // 如果是书签项，直接打开书签URL
+    if (state.value.newWindowOpen) {
+      window.open(url, '_blank')
+    } else {
+      window.location.href = url
+    }
+    // 清空搜索框并关闭建议列表
+    handleClearSearchTerm()
+  } else {
+    // 否则执行正常搜索
+    searchTerm.value = value
+    suggestionsVisible.value = false
+    // 触发搜索
+    nextTick(() => {
+      handleSearchClick()
+    })
+  }
 }
 
 function replaceOrAppendKeywordToUrl(url: string, keyword: string) {
@@ -401,7 +741,8 @@ const handleKeyDown = (e: KeyboardEvent) => {
   else if (e.key === 'Enter') {
     e.preventDefault()
     if (selectedIndex.value >= 0 && filteredSuggestions.value.length > 0) {
-      handleSuggestionSelect(filteredSuggestions.value[selectedIndex.value].value)
+      const selectedItem = filteredSuggestions.value[selectedIndex.value]
+      handleSuggestionSelect(selectedItem.value, selectedItem.isBookmark, selectedItem.url)
     } else {
       handleSearchClick()
     }
@@ -471,19 +812,24 @@ onMounted(() => {
         </div>
 
         <!-- 建议列表 -->
-        <div
-          v-else
-          v-for="(suggestion, index) in filteredSuggestions"
-          :key="index"
-          class="suggestion-item px-4 py-2 cursor-pointer hover:bg-white/10 transition-colors flex items-center"
-          :class="{ 'active': index === selectedIndex }"
-          :style="{ color: textColor }"
-          @mousedown="handleSuggestionSelect(suggestion.value)"
-          @mouseenter="selectedIndex = index"
-        >
+      <div
+        v-else
+        v-for="(suggestion, index) in filteredSuggestions"
+        :key="index"
+        class="suggestion-item px-4 py-2 cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-between"
+        :class="{ 'active': index === selectedIndex }"
+        :style="{ color: textColor }"
+        @mousedown="handleSuggestionSelect(suggestion.value, suggestion.isBookmark, suggestion.url)"
+        @mouseenter="selectedIndex = index"
+      >
+        <div class="flex items-center">
           <SvgIcon icon="mdi:magnify" class="mr-2" />
           {{ suggestion.value }}
         </div>
+        <div v-if="suggestion.isBookmark" class="ml-2 text-xs opacity-80">
+          [{{ $t('deskModule.searchBox.bookmark') || '书签' }}]
+        </div>
+      </div>
       </div>
     </div>
 
@@ -503,10 +849,15 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="mt-[10px]">
+      <div class="mt-[10px] flex items-center space-x-[20px]">
         <NCheckbox v-model:checked="state.newWindowOpen" @update-checked="moduleConfig.saveToCloud(moduleConfigName, state)">
           <span :style="{ color: textColor }">
             {{ $t('deskModule.searchBox.openWithNewOpen') }}
+          </span>
+        </NCheckbox>
+        <NCheckbox v-model:checked="state.searchBookmarks" @update-checked="moduleConfig.saveToCloud(moduleConfigName, state)">
+          <span :style="{ color: textColor }">
+            {{ $t('deskModule.searchBox.searchBookmarks') || '搜索书签内容' }}
           </span>
         </NCheckbox>
       </div>

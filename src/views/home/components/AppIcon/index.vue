@@ -88,6 +88,13 @@ const itemIconSize = computed(() => {
       >
         <span>{{ itemInfo?.title }}</span>
       </div>
+      <div
+        v-if="!iconTextInfoHideDescription && itemInfo?.description"
+        class="app-icon-small-description text-center text-xs opacity-80 cursor-pointer mt-[1px]"
+        :style="{ color: iconTextColor }"
+      >
+        {{ itemInfo?.description }}
+      </div>
     </div>
   </div>
 </template>
