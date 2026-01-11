@@ -91,12 +91,16 @@ func InitApp() error {
 	global.SystemSetting = systemSettingCache.InItSystemSettingCache()
 	global.SystemMonitor = global.NewCache[interface{}](5*time.Hour, -1, "systemMonitorCache")
 
-	// 异步更新item_icon表中的非base64格式图标
-	go UpdateIconBase64()
-	// 异步更新bookmark表中的parent_id字段，将老数据的parent_url转换为parent_id
-	go UpdateBookmarkParentId()
-	// 异步更新bookmark表中icon_json为空的数据，使用谷歌API获取图标
-	go UpdateBookmarkIconJson()
+	// 异步执行耗时任务，延迟5秒启动，避免阻塞服务器启动日志
+	go func() {
+		time.Sleep(5 * time.Second)
+		// 异步更新item_icon表中的非base64格式图标
+		go UpdateIconBase64()
+		// 异步更新bookmark表中的parent_id字段，将老数据的parent_url转换为parent_id
+		go UpdateBookmarkParentId()
+		// 异步更新bookmark表中icon_json为空的数据，使用谷歌API获取图标
+		go UpdateBookmarkIconJson()
+	}()
 
 	return nil
 }

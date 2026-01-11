@@ -5,3 +5,12 @@ export function get<T>() {
     url: '/about',
   })
 }
+export function checkUpdate() {
+  return post<{
+    hasNewVersion: boolean
+    latestVersion: string
+    updateContent: string
+  }>({
+    url: '/checkUpdate',
+  })
+}
