@@ -246,6 +246,7 @@
     "textColor": "文字颜色",
     "title": "标题",
     "unknownError": "未知错误",
+    "upload": "上传",
     "uploadFail": "上传失败",
     "username": "账号",
     "verify": "验证",
@@ -265,7 +266,19 @@
     "searchBox": {
       "inputPlaceholder": "请输入搜索内容",
       "openWithNewOpen": "新窗口打开",
-      "loading": "加载中..."
+      "loading": "加载中...",
+      "searchBookmarks": "搜索书签内容",
+      "bookmark": "书签",
+      "manageSearchEngines": "管理搜索引擎",
+      "searchEngineList": "搜索引擎列表",
+      "searchEngine": "搜索引擎",
+      "icon": "图标",
+      "title": "标题",
+      "url": "URL",
+      "iconTip": "支持 PNG, JPG, SVG 格式",
+      "urlTip": "使用 %s 作为搜索关键词的占位符",
+      "titlePlaceholder": "例如: Google",
+      "urlPlaceholder": "例如: https://www.google.com/search?q=%s"
     },
     "systemMonitor": {
       "cpuState": "CPU状态",

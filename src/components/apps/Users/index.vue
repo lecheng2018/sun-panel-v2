@@ -28,13 +28,24 @@ const createColumns = ({
       title: t('common.username'),
       key: 'username',
       render(row: User.Info) {
-        let publicVisitHtml = ''
-        if (publicVisitUserId.value && publicVisitUserId.value === row.id)
-          publicVisitHtml = `[${t('adminSettingUsers.pblicText')}]-`
+        const renderTags = []
+        // 公开访问标识
+        if (publicVisitUserId.value && publicVisitUserId.value === row.id) {
+          renderTags.push(h(NTag, { type: 'warning', bordered: false, size: 'small' }, { default: () => t('adminSettingUsers.pblicText') }))
+        }
+        // 当前账号标识
+        if (row.username === authStore.userInfo?.username) {
+          renderTags.push(h(NTag, { type: 'success', bordered: false, size: 'small' }, { default: () => t('adminSettingUsers.currentUseUsername') }))
+        }
 
-        if (row.username === authStore.userInfo?.username)
-          return `${publicVisitHtml}${row.username} (${t('adminSettingUsers.currentUseUsername')})`
-        return publicVisitHtml + row.username
+        if (renderTags.length === 0) {
+          return row.username
+        }
+
+        return h('div', { class: 'flex items-center space-x-2' }, [
+          h('span', row.username),
+          ...renderTags
+        ])
       },
     },
     {

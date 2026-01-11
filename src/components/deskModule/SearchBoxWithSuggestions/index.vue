@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { defineEmits, onMounted, ref, computed, nextTick, watch } from 'vue'
-import { NAvatar, NCheckbox } from 'naive-ui'
+import { NAvatar, NCheckbox, useMessage } from 'naive-ui'
 import { SvgIcon } from '@/components/common'
 import { useModuleConfig } from '@/store/modules'
 import { useAuthStore } from '@/store'
 import { VisitMode } from '@/enums/auth'
 import { ss } from '@/utils/storage/local'
+import { t } from '@/locales'
 
 import SvgSrcBaidu from '@/assets/search_engine_svg/baidu.svg'
 import SvgSrcBing from '@/assets/search_engine_svg/bing.svg'
@@ -55,6 +56,7 @@ interface TreeItem {
 const moduleConfigName = 'deskModuleSearchBox'
 const moduleConfig = useModuleConfig()
 const authStore = useAuthStore()
+const ms = useMessage()
 const searchTerm = ref('')
 const isFocused = ref(false)
 const searchSelectListShow = ref(false)
@@ -250,7 +252,7 @@ function buildBookmarkTree(bookmarks: any[]): TreeItem[] {
 function searchBookmarks(keyword: string): SuggestionItem[] {
   const results: SuggestionItem[] = []
   const lowerCaseKeyword = keyword.toLowerCase()
-  
+
   // 添加一些测试书签数据，确保书签结果能显示
   const testBookmarks: any[] = [
     {
@@ -278,12 +280,12 @@ function searchBookmarks(keyword: string): SuggestionItem[] {
       iconJson: ''
     }
   ]
-  
+
   // 搜索测试数据
   for (const bookmark of testBookmarks) {
     const title = bookmark.title.toLowerCase()
     const url = bookmark.url.toLowerCase()
-    
+
     if (title.includes(lowerCaseKeyword) || url.includes(lowerCaseKeyword)) {
       results.push({
         value: bookmark.title,
@@ -292,15 +294,15 @@ function searchBookmarks(keyword: string): SuggestionItem[] {
       })
     }
   }
-  
+
   // 从localStorage获取已有的书签数据
   const cachedData = ss.get(BOOKMARKS_CACHE_KEY)
   if (!cachedData) {
     return results
   }
-  
+
   let bookmarksTree: TreeItem[] = []
-  
+
   // 处理缓存的数据格式，转换为树形结构
   if (Array.isArray(cachedData)) {
     // 检查是否已经是树形结构（直接包含children字段）
@@ -328,13 +330,13 @@ function searchBookmarks(keyword: string): SuggestionItem[] {
       }
     }
   }
-  
+
   // 递归搜索书签
   function traverse(node: TreeItem) {
     if (node.isLeaf && node.bookmark) {
       const title = node.bookmark.title.toLowerCase()
       const url = node.bookmark.url.toLowerCase()
-      
+
       if (title.includes(lowerCaseKeyword) || url.includes(lowerCaseKeyword)) {
         results.push({
           value: node.bookmark.title,
@@ -343,18 +345,18 @@ function searchBookmarks(keyword: string): SuggestionItem[] {
         })
       }
     }
-    
+
     if (node.children && node.children.length > 0) {
       for (const child of node.children) {
         traverse(child)
       }
     }
   }
-  
+
   for (const node of bookmarksTree) {
     traverse(node)
   }
-  
+
   return results
 }
 
@@ -364,23 +366,249 @@ const selectedIndex = ref(-1)
 // 加载状态
 const loadingSuggestions = ref(false)
 
-const defaultSearchEngineList = ref<DeskModule.SearchBox.SearchEngine[]>([
-  {
-    iconSrc: SvgSrcGoogle,
-    title: 'Google',
-    url: 'https://www.google.com/search?q=%s',
-  },
-  {
-    iconSrc: SvgSrcBaidu,
-    title: 'Baidu',
-    url: 'https://www.baidu.com/s?wd=%s',
-  },
-  {
-    iconSrc: SvgSrcBing,
-    title: 'Bing',
-    url: 'https://www.bing.com/search?q=%s',
-  },
-])
+import { getList, add, update, deletes, updateSort } from '@/api/panel/searchEngine'
+
+// 搜索引擎管理对话框相关状态
+const searchEngineDialogVisible = ref(false)
+const editingSearchEngine = ref<DeskModule.SearchBox.SearchEngine | null>(null)
+const editingSearchEngineIndex = ref(-1)
+const searchEngineForm = ref({
+  id: 0,
+  iconSrc: '',
+  title: '',
+  url: ''
+})
+const draggedEngineIndex = ref<number | null>(null)
+
+const defaultSearchEngineList = ref<DeskModule.SearchBox.SearchEngine[]>([])
+
+// 初始化加载搜索引擎列表
+const initSearchEngines = async () => {
+  try {
+    const { code, data } = await getList()
+    if (code === 0) {
+      defaultSearchEngineList.value = (data && data.list) || []
+
+      // 如果列表为空（首次运行），添加默认数据
+      if (defaultSearchEngineList.value.length === 0) {
+         await createDefaultEngines()
+      } else {
+         // 检查当前选中的搜索引擎是否有效
+         checkCurrentEngine()
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load search engines:', error)
+  }
+}
+
+// 创建默认搜索引擎
+const createDefaultEngines = async () => {
+  const defaults = [
+    {
+      iconSrc: SvgSrcGoogle,
+      title: 'Google',
+      url: 'https://www.google.com/search?q=%s',
+    },
+    {
+      iconSrc: SvgSrcBaidu,
+      title: 'Baidu',
+      url: 'https://www.baidu.com/s?wd=%s',
+    },
+    {
+      iconSrc: SvgSrcBing,
+      title: 'Bing',
+      url: 'https://www.bing.com/search?q=%s',
+    },
+  ]
+
+  for (const engine of defaults) {
+    await add(engine)
+  }
+
+  // 重新加载列表
+  const { code, data } = await getList()
+  if (code === 0) {
+    defaultSearchEngineList.value = (data && data.list) || []
+    // 设置默认选中第一个
+    if (defaultSearchEngineList.value.length > 0) {
+       state.value.currentSearchEngine = defaultSearchEngineList.value[0]
+       moduleConfig.saveToCloud(moduleConfigName, state.value)
+    }
+  }
+}
+
+// 检查当前选中的搜索引擎
+const checkCurrentEngine = () => {
+  if (!state.value.currentSearchEngine || !state.value.currentSearchEngine.url) {
+    if (defaultSearchEngineList.value.length > 0) {
+      state.value.currentSearchEngine = defaultSearchEngineList.value[0]
+    }
+    return
+  }
+
+  // 既然已经持久化了，最好确保当前选中的是列表中的某一个（通过ID或URL匹配）
+  // 这里暂时简单处理，如果列表中有匹配的URL，就更新为列表中的项（以获取最新的图标/标题）
+  const match = defaultSearchEngineList.value.find(e => e.url === state.value.currentSearchEngine.url)
+  if (match) {
+    state.value.currentSearchEngine = match
+  }
+}
+
+// 打开搜索引擎管理对话框
+function openSearchEngineDialog() {
+  searchEngineDialogVisible.value = true
+}
+
+// 关闭搜索引擎管理对话框
+function closeSearchEngineDialog() {
+  searchEngineDialogVisible.value = false
+  resetSearchEngineForm()
+}
+
+// 重置表单
+function resetSearchEngineForm() {
+  searchEngineForm.value = {
+    id: 0,
+    iconSrc: '',
+    title: '',
+    url: ''
+  }
+  editingSearchEngine.value = null
+  editingSearchEngineIndex.value = -1
+}
+
+// 开始编辑搜索引擎
+function startEditSearchEngine(engine: DeskModule.SearchBox.SearchEngine, index: number) {
+  editingSearchEngine.value = engine
+  editingSearchEngineIndex.value = index
+  searchEngineForm.value = {
+    id: engine.id!, // 确保有ID
+    iconSrc: engine.iconSrc,
+    title: engine.title,
+    url: engine.url
+  }
+}
+
+// 保存搜索引擎
+async function saveSearchEngine() {
+  if (!searchEngineForm.value.title || !searchEngineForm.value.url) {
+    return
+  }
+
+  try {
+    if (editingSearchEngineIndex.value >= 0) {
+      // 编辑现有搜索引擎
+      const { code } = await update({
+        id: searchEngineForm.value.id,
+        title: searchEngineForm.value.title,
+        url: searchEngineForm.value.url,
+        iconSrc: searchEngineForm.value.iconSrc,
+      })
+      if (code === 0) {
+        ms.success(t('common.saveSuccess') || '保存成功')
+        closeSearchEngineDialog()
+      } else {
+        return // 失败不重置
+      }
+    } else {
+      // 添加新搜索引擎
+      const { code } = await add({
+        title: searchEngineForm.value.title,
+        url: searchEngineForm.value.url,
+        iconSrc: searchEngineForm.value.iconSrc,
+      })
+      if (code === 0) {
+        ms.success(t('common.addSuccess') || '添加成功')
+        closeSearchEngineDialog()
+      } else {
+        return
+      }
+    }
+  } catch (error) {
+     ms.error(t('common.failed') || '操作失败')
+     return
+  }
+
+  // 重新加载列表
+  await initSearchEngines()
+  resetSearchEngineForm()
+}
+
+// 删除搜索引擎
+async function deleteSearchEngine(index: number) {
+  const engine = defaultSearchEngineList.value[index]
+  if (!engine.id) return
+
+  try {
+    const { code } = await deletes({ id: engine.id })
+    if (code === 0) {
+       ms.success(t('common.deleteSuccess') || '删除成功')
+       // 如果删除的是当前选中的搜索引擎，切换到第一个
+        if (state.value.currentSearchEngine?.url === engine.url) {
+            // 稍后在initSearchEngines中会处理
+        }
+        await initSearchEngines()
+    } else {
+        ms.error(t('common.deleteFail') || '删除失败')
+    }
+  } catch (error) {
+     ms.error(t('common.deleteFail') || '删除失败')
+  }
+}
+
+// 拖拽开始
+function handleDragStart(index: number) {
+  draggedEngineIndex.value = index
+}
+
+// 拖拽结束
+async function handleDragEnd() {
+  draggedEngineIndex.value = null
+
+  // 保存排序
+  const items = defaultSearchEngineList.value.map((item, index) => ({
+    id: item.id!,
+    sort: index + 1
+  }))
+
+  try {
+     const { code } = await updateSort({ items })
+     if (code === 0) {
+        // ms.success(t('common.saveSort') || '排序保存成功') // 可选提示
+     }
+  } catch (error) {
+     console.error('Failed to save sort order:', error)
+  }
+}
+
+// 拖拽经过
+function handleDragOver(e: DragEvent, index: number) {
+  e.preventDefault()
+  if (draggedEngineIndex.value === null || draggedEngineIndex.value === index) {
+    return
+  }
+
+  const draggedItem = defaultSearchEngineList.value[draggedEngineIndex.value]
+  const newList = [...defaultSearchEngineList.value]
+  newList.splice(draggedEngineIndex.value, 1)
+  newList.splice(index, 0, draggedItem)
+  defaultSearchEngineList.value = newList
+  draggedEngineIndex.value = index
+}
+
+// 处理图标上传
+function handleIconUpload(e: Event) {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  const reader = new FileReader()
+  reader.onload = (event) => {
+    searchEngineForm.value.iconSrc = event.target?.result as string
+  }
+  reader.readAsDataURL(file)
+}
 
 const defaultState: State = {
   currentSearchEngine: defaultSearchEngineList.value[0],
@@ -400,7 +628,7 @@ const filteredSuggestions = computed(() => {
 watch(searchTerm, async (newVal) => {
   // 重置选中索引
   selectedIndex.value = -1
-  
+
   if (newVal) {
     await fetchSuggestions(newVal)
   } else {
@@ -432,11 +660,11 @@ const fetchSuggestions = async (keyword: string) => {
   try {
     // 1. 根据开关状态决定是否搜索书签
     const bookmarkSuggestions = state.value.searchBookmarks ? searchBookmarks(keyword) : []
-    
+
     // 2. 然后获取搜索引擎建议
     const apiUrl = getSuggestionApiUrl(state.value.currentSearchEngine, keyword)
     let searchEngineSuggestions: SuggestionItem[] = []
-    
+
     if (!apiUrl) {
       // 如果没有对应API，使用默认建议
       searchEngineSuggestions = getDefaultSuggestions(keyword)
@@ -450,10 +678,10 @@ const fetchSuggestions = async (keyword: string) => {
         searchEngineSuggestions = await fetchBingSuggestions(apiUrl, keyword)
       }
     }
-    
+
     // 3. 合并结果，书签结果在前，搜索引擎结果在后，不进行去重
     const allSuggestions: SuggestionItem[] = [...bookmarkSuggestions, ...searchEngineSuggestions]
-    
+
     suggestionOptions.value = allSuggestions
   } catch (error) {
     console.error('获取搜索建议失败:', error)
@@ -461,10 +689,10 @@ const fetchSuggestions = async (keyword: string) => {
     const defaultSuggestions = getDefaultSuggestions(keyword)
     // 根据开关状态决定是否搜索书签
     const bookmarkSuggestions = state.value.searchBookmarks ? searchBookmarks(keyword) : []
-    
+
     // 合并结果，书签结果在前，默认建议在后，不进行去重
     const allSuggestions: SuggestionItem[] = [...bookmarkSuggestions, ...defaultSuggestions]
-    
+
     suggestionOptions.value = allSuggestions
   } finally {
     loadingSuggestions.value = false
@@ -766,6 +994,9 @@ onMounted(() => {
       state.value = data || defaultState
     else
       state.value = defaultState
+
+    // 加载搜索引擎列表
+    initSearchEngines()
   })
 })
 </script>
@@ -774,7 +1005,7 @@ onMounted(() => {
   <div class="search-box w-full" @keydown.enter="handleSearchClick" @keydown.esc="handleClearSearchTerm">
     <div class="search-container flex rounded-2xl items-center justify-center text-white w-full relative" :style="{ background, color: textColor }" :class="{ focused: isFocused }">
       <div class="search-box-btn-engine w-[40px] flex justify-center cursor-pointer" @click="handleEngineClick">
-        <NAvatar :src="state.currentSearchEngine.iconSrc" style="background-color: transparent;" :size="20" />
+        <NAvatar :src="state.currentSearchEngine?.iconSrc || defaultSearchEngineList[0]?.iconSrc" style="background-color: transparent;" :size="20" />
       </div>
 
       <input
@@ -836,8 +1067,8 @@ onMounted(() => {
       <div class="flex items-center">
         <div class="flex items-center">
           <div
-            v-for="item, index in defaultSearchEngineList"
-            :key="index"
+            v-for="(item, index) in defaultSearchEngineList"
+            :key="(item as any).id || index"
             :title="item.title"
             class="w-[40px] h-[40px] mr-[10px]  cursor-pointer bg-[#ffffff] flex items-center justify-center rounded-xl"
             @click="handleEngineUpdate(item)"
@@ -855,9 +1086,159 @@ onMounted(() => {
         </NCheckbox>
         <NCheckbox v-model:checked="state.searchBookmarks" @update-checked="moduleConfig.saveToCloud(moduleConfigName, state)">
           <span :style="{ color: textColor }">
-            {{ $t('deskModule.searchBox.searchBookmarks') || '搜索书签内容' }}
+            {{ $t('deskModule.searchBox.searchBookmarks')  }}
           </span>
         </NCheckbox>
+        <div
+          class="flex-shrink-0 flex items-center justify-center w-8 h-8 cursor-pointer hover:bg-white/10 rounded transition-all"
+          @click="openSearchEngineDialog"
+          :title="$t('deskModule.searchBox.manageSearchEngines')"
+        >
+          <SvgIcon icon="set" :style="{ width: '20px', height: '20px', color: textColor }" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 搜索引擎管理对话框 -->
+  <div v-if="searchEngineDialogVisible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000]" @click.self="closeSearchEngineDialog">
+    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 w-[600px] max-h-[80vh] overflow-y-auto" @click.stop>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold text-gray-800 dark:text-white">{{ $t('deskModule.searchBox.manageSearchEngines') }}</h3>
+        <div class="cursor-pointer text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" @click="closeSearchEngineDialog">
+          <SvgIcon icon="line-md:close-small" style="width: 24px; height: 24px;" />
+        </div>
+      </div>
+
+      <!-- 搜索引擎列表 -->
+      <div class="mb-6">
+        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">{{ $t('deskModule.searchBox.searchEngineList') || '搜索引擎列表' }}</h4>
+        <div class="space-y-2">
+          <div
+            v-for="(engine, index) in defaultSearchEngineList"
+            :key="index"
+            :draggable="true"
+            @dragstart="handleDragStart(index)"
+            @dragend="handleDragEnd"
+            @dragover="handleDragOver($event, index)"
+            class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-move hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+            :class="{ 'opacity-50': draggedEngineIndex === index }"
+          >
+            <div class="flex items-center space-x-3 flex-1">
+              <SvgIcon icon="ri-drag-drop-line" class="text-gray-400" style="width: 20px; height: 20px;" />
+              <div class="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-800 rounded">
+                <img v-if="engine.iconSrc" :src="engine.iconSrc" class="w-6 h-6" alt="" />
+                <SvgIcon v-else icon="ion-language" class="text-gray-400" style="width: 20px; height: 20px;" />
+              </div>
+              <div class="flex-1">
+                <div class="text-sm font-medium text-gray-800 dark:text-white">{{ engine.title }}</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ engine.url }}</div>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2">
+              <div
+                class="cursor-pointer text-blue-500 hover:text-blue-600"
+                @click="startEditSearchEngine(engine, index)"
+                :title="$t('common.edit') || '编辑'"
+              >
+                <SvgIcon icon="basil-edit-solid" style="width: 20px; height: 20px;" />
+              </div>
+              <div
+                class="cursor-pointer text-red-500 hover:text-red-600"
+                @click="deleteSearchEngine(index)"
+                :title="$t('common.delete') || '删除'"
+              >
+                <SvgIcon icon="material-symbols-delete" style="width: 20px; height: 20px;" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 添加/编辑表单 -->
+      <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
+        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+          {{ editingSearchEngineIndex >= 0 ? ($t('common.edit') || '编辑') : ($t('common.add') || '添加') }}
+          {{ $t('deskModule.searchBox.searchEngine') || '搜索引擎' }}
+        </h4>
+
+        <div class="space-y-4">
+          <!-- 图标上传 -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              {{ $t('deskModule.searchBox.icon') || '图标' }}
+            </label>
+            <div class="flex items-center space-x-3">
+              <div class="w-12 h-12 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded border-2 border-dashed border-gray-300 dark:border-gray-600">
+                <img v-if="searchEngineForm.iconSrc" :src="searchEngineForm.iconSrc" class="w-10 h-10 object-contain" alt="" />
+                <SvgIcon v-else icon="typcn-plus" class="text-gray-400" style="width: 24px; height: 24px;" />
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                @change="handleIconUpload"
+                class="hidden"
+                id="iconUpload"
+              />
+              <label
+                for="iconUpload"
+                class="px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer hover:bg-blue-600 transition-colors text-sm"
+              >
+                {{ $t('common.upload') || '上传' }}
+              </label>
+              <div class="text-xs text-gray-500 dark:text-gray-400">
+                {{ $t('deskModule.searchBox.iconTip') || '支持 PNG, JPG, SVG 格式' }}
+              </div>
+            </div>
+          </div>
+
+          <!-- 标题 -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              {{ $t('deskModule.searchBox.title') || '标题' }}
+            </label>
+            <input
+              v-model="searchEngineForm.title"
+              type="text"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              :placeholder="$t('deskModule.searchBox.titlePlaceholder') || '例如: Google'"
+            />
+          </div>
+
+          <!-- URL -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              {{ $t('deskModule.searchBox.url') || 'URL' }}
+            </label>
+            <input
+              v-model="searchEngineForm.url"
+              type="text"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              :placeholder="$t('deskModule.searchBox.urlPlaceholder') || '例如: https://www.google.com/search?q=%s'"
+            />
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {{ $t('deskModule.searchBox.urlTip') || '使用 %s 作为搜索关键词的占位符' }}
+            </div>
+          </div>
+
+          <!-- 按钮 -->
+          <div class="flex justify-end space-x-3">
+            <button
+              v-if="editingSearchEngineIndex >= 0"
+              @click="resetSearchEngineForm"
+              class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              {{ $t('common.cancel') || '取消' }}
+            </button>
+            <button
+              @click="saveSearchEngine"
+              class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="!searchEngineForm.title || !searchEngineForm.url"
+            >
+              {{ editingSearchEngineIndex >= 0 ? ($t('common.save') || '保存') : ($t('common.add') || '添加') }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

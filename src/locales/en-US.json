@@ -243,6 +243,7 @@
     "textColor": "Text color",
     "title": "Title",
     "unknownError": "Unknown error",
+    "upload": "Upload",
     "uploadFail": "Upload failed",
     "username": "Username",
     "verify": "Verify",
@@ -262,7 +263,19 @@
     "searchBox": {
       "inputPlaceholder": "Enter search content",
       "openWithNewOpen": "Open in new window",
-      "loading": "Loading..."
+      "loading": "Loading...",
+      "searchBookmarks": "Search bookmark content",
+      "bookmark": "Bookmark",
+      "manageSearchEngines": "Manage Search Engines",
+      "searchEngineList": "Search Engine List",
+      "searchEngine": "Search Engine",
+      "icon": "Icon",
+      "title": "Title",
+      "url": "URL",
+      "iconTip": "Supports PNG, JPG, SVG formats",
+      "urlTip": "Use %s as placeholder for search keyword",
+      "titlePlaceholder": "e.g., Google",
+      "urlPlaceholder": "e.g., https://www.google.com/search?q=%s"
     },
     "systemMonitor": {
       "cpuState": "CPU status",

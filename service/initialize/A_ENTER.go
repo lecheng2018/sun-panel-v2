@@ -131,6 +131,7 @@ func DatabaseConnect() {
 	database.CreateDatabase(databaseDrive, global.Db)
 
 	database.NotFoundAndCreateUser(global.Db)
+	database.NotFoundAndCreateSearchEngines(global.Db)
 }
 
 // 命令行运行

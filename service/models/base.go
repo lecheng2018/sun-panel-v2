@@ -58,6 +58,13 @@ func GetDb() (*gorm.DB, error) {
 
 	dbModels := []interface{}{
 		&User{},
+		&Bookmark{},
+		&ItemIconGroup{},
+		&ItemIcon{},
+		&SystemSetting{},
+		&ModuleConfig{},
+		&UserConfig{},
+		&SearchEngine{}, // 注册搜索引擎模型
 	}
 	dbDrive := "mysql"
 
