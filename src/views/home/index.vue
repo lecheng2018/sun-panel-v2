@@ -52,6 +52,7 @@ async function handleRefreshData() {
     // 删除除用户登录信息外的所有缓存
     ss.remove(BOOKMARKS_CACHE_KEY)
     ss.remove(GROUP_LIST_CACHE_KEY)
+    ss.remove('searchEngineListCache')
 
     // 直接清除所有localStorage中的图标列表缓存
     // 由于ss没有getAllKeys方法，我们直接使用原生localStorage API

@@ -31,10 +31,11 @@ const loginPost = async () => {
     const res = await login<Login.LoginResponse>(form.value)
     if (res.code === 0) {
       // 清除所有相关缓存，确保使用新的登录状态数据
-      ss.remove('USER_AUTH_INFO_CACHE')
-      ss.remove('USER_CONFIG_CACHE')
-      ss.remove('GROUP_LIST_CACHE_KEY')
-      ss.remove('bookmarksTreeCache')
+ss.remove('USER_AUTH_INFO_CACHE')
+ss.remove('USER_CONFIG_CACHE')
+ss.remove('GROUP_LIST_CACHE_KEY')
+ss.remove('bookmarksTreeCache')
+ss.remove('searchEngineListCache')
 
       // 清除所有localStorage中的相关缓存键
       // 对于以特定前缀开头的键，我们需要使用localStorage API直接访问

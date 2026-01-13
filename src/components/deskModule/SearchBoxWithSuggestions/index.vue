@@ -68,6 +68,8 @@ const suggestionOptions = ref<SuggestionItem[]>([])
 
 // 书签缓存键名
 const BOOKMARKS_CACHE_KEY = 'bookmarksTreeCache'
+// 搜索引擎列表缓存键名
+const SEARCH_ENGINE_LIST_CACHE_KEY = 'searchEngineListCache'
 
 // 将服务器返回的树形结构转换为前端组件需要的格式
 function convertServerTreeToFrontendTree(serverTree: any[]): TreeItem[] {
@@ -383,11 +385,28 @@ const draggedEngineIndex = ref<number | null>(null)
 const defaultSearchEngineList = ref<DeskModule.SearchBox.SearchEngine[]>([])
 
 // 初始化加载搜索引擎列表
-const initSearchEngines = async () => {
+const initSearchEngines = async (forceRefresh = false) => {
   try {
+    if (forceRefresh) {
+      ss.remove(SEARCH_ENGINE_LIST_CACHE_KEY)
+    }
+    
+    if (!forceRefresh) {
+      const cachedData = ss.get(SEARCH_ENGINE_LIST_CACHE_KEY)
+      if (cachedData) {
+        defaultSearchEngineList.value = cachedData
+        // 检查当前选中的搜索引擎是否有效
+        checkCurrentEngine()
+        return
+      }
+    }
+    
     const { code, data } = await getList()
     if (code === 0) {
       defaultSearchEngineList.value = (data && data.list) || []
+      
+      // 保存到缓存
+      ss.set(SEARCH_ENGINE_LIST_CACHE_KEY, defaultSearchEngineList.value)
 
       // 如果列表为空（首次运行），添加默认数据
       if (defaultSearchEngineList.value.length === 0) {
@@ -430,6 +449,8 @@ const createDefaultEngines = async () => {
   const { code, data } = await getList()
   if (code === 0) {
     defaultSearchEngineList.value = (data && data.list) || []
+    // 保存到缓存
+    ss.set(SEARCH_ENGINE_LIST_CACHE_KEY, defaultSearchEngineList.value)
     // 设置默认选中第一个
     if (defaultSearchEngineList.value.length > 0) {
        state.value.currentSearchEngine = defaultSearchEngineList.value[0]
@@ -530,8 +551,8 @@ async function saveSearchEngine() {
      return
   }
 
-  // 重新加载列表
-  await initSearchEngines()
+  // 重新加载列表（强制刷新）
+  await initSearchEngines(true)
   resetSearchEngineForm()
 }
 
@@ -548,7 +569,8 @@ async function deleteSearchEngine(index: number) {
         if (state.value.currentSearchEngine?.url === engine.url) {
             // 稍后在initSearchEngines中会处理
         }
-        await initSearchEngines()
+        // 重新加载列表（强制刷新）
+        await initSearchEngines(true)
     } else {
         ms.error(t('common.deleteFail') || '删除失败')
     }
