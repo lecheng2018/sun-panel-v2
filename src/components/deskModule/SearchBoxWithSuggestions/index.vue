@@ -932,7 +932,7 @@ function handleSearchClick() {
   if (state.value.newWindowOpen)
     openUrlWithoutReferer(fullUrl, '_blank')
   else
-    window.location.href = fullUrl
+    window.location.replace(fullUrl)
 }
 
 function handleSuggestionSelect(value: string, isBookmark?: boolean, url?: string) {
@@ -941,7 +941,7 @@ function handleSuggestionSelect(value: string, isBookmark?: boolean, url?: strin
     if (state.value.newWindowOpen) {
       openUrlWithoutReferer(url, '_blank')
     } else {
-      window.location.href = url
+      window.location.replace(url)
     }
     // 清空搜索框并关闭建议列表
     handleClearSearchTerm()

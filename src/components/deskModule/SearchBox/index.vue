@@ -92,7 +92,7 @@ function handleSearchClick() {
   if (state.value.newWindowOpen)
     openUrlWithoutReferer(fullUrl, '_blank')
   else
-    window.location.href = fullUrl
+    window.location.replace(fullUrl)
 }
 
 function replaceOrAppendKeywordToUrl(url: string, keyword: string) {

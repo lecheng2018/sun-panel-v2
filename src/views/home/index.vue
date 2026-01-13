@@ -436,7 +436,7 @@ function buildBookmarkTree(bookmarks: any[]): any[] {
 function openPage(openMethod: number, url: string, title?: string) {
   switch (openMethod) {
     case 1:
-      window.location.href = url
+      window.location.replace(url)
       break
     case 2:
       openUrlWithoutReferer(url, '_blank')
