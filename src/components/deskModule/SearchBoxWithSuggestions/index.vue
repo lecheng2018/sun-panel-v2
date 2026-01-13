@@ -11,6 +11,7 @@ import { t } from '@/locales'
 import SvgSrcBaidu from '@/assets/search_engine_svg/baidu.svg'
 import SvgSrcBing from '@/assets/search_engine_svg/bing.svg'
 import SvgSrcGoogle from '@/assets/search_engine_svg/google.svg'
+import { openUrlWithoutReferer } from '@/utils/cmn'
 
 withDefaults(defineProps<{
   background?: string
@@ -390,7 +391,7 @@ const initSearchEngines = async (forceRefresh = false) => {
     if (forceRefresh) {
       ss.remove(SEARCH_ENGINE_LIST_CACHE_KEY)
     }
-    
+
     if (!forceRefresh) {
       const cachedData = ss.get(SEARCH_ENGINE_LIST_CACHE_KEY)
       if (cachedData) {
@@ -400,11 +401,11 @@ const initSearchEngines = async (forceRefresh = false) => {
         return
       }
     }
-    
+
     const { code, data } = await getList()
     if (code === 0) {
       defaultSearchEngineList.value = (data && data.list) || []
-      
+
       // 保存到缓存
       ss.set(SEARCH_ENGINE_LIST_CACHE_KEY, defaultSearchEngineList.value)
 
@@ -929,7 +930,7 @@ function handleSearchClick() {
   const fullUrl = replaceOrAppendKeywordToUrl(url, keyword.value)
   handleClearSearchTerm()
   if (state.value.newWindowOpen)
-    window.open(fullUrl)
+    openUrlWithoutReferer(fullUrl, '_blank')
   else
     window.location.href = fullUrl
 }
@@ -938,7 +939,7 @@ function handleSuggestionSelect(value: string, isBookmark?: boolean, url?: strin
   if (isBookmark && url) {
     // 如果是书签项，直接打开书签URL
     if (state.value.newWindowOpen) {
-      window.open(url, '_blank')
+      openUrlWithoutReferer(url, '_blank')
     } else {
       window.location.href = url
     }

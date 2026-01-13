@@ -9,6 +9,7 @@ import { VisitMode } from '@/enums/auth'
 import SvgSrcBaidu from '@/assets/search_engine_svg/baidu.svg'
 import SvgSrcBing from '@/assets/search_engine_svg/bing.svg'
 import SvgSrcGoogle from '@/assets/search_engine_svg/google.svg'
+import { openUrlWithoutReferer } from '@/utils/cmn'
 
 withDefaults(defineProps<{
   background?: string
@@ -89,7 +90,7 @@ function handleSearchClick() {
   const fullUrl = replaceOrAppendKeywordToUrl(url, keyword.value)
   handleClearSearchTerm()
   if (state.value.newWindowOpen)
-    window.open(fullUrl)
+    openUrlWithoutReferer(fullUrl, '_blank')
   else
     window.location.href = fullUrl
 }

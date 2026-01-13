@@ -294,6 +294,7 @@ import { getList as getBookmarksList, add as addBookmark, update, deletes, addMu
 import { t } from '@/locales'
 import { dialog } from '@/utils/request/apiMessage'
 import { ss } from '@/utils/storage/local'
+import { openUrlWithoutReferer } from '@/utils/cmn'
 
 
 // 组件顶部（import 之后）添加核心接口
@@ -983,8 +984,8 @@ function closeContextMenu() {
 // 打开书签URL
 function openBookmark(bookmark: Bookmark) {
 	if (bookmark.url && !bookmark.isFolder) {
-		// 使用window.open在新标签页中打开书签URL
-		window.open(bookmark.url, '_blank');
+		// 使用openUrlWithoutReferer在新标签页中打开书签URL，防止referer导致的403错误
+		openUrlWithoutReferer(bookmark.url, '_blank');
 	}
 }
 

@@ -228,3 +228,23 @@ export function bytesToSize(bytes: number) {
   const i = parseInt(String(Math.floor(Math.log(bytes) / Math.log(1024))))
   return `${(bytes / 1024 ** i).toFixed(1)} ${sizes[i]}`
 }
+
+/**
+ * 打开链接时不发送Referer头，解决某些网站403错误的问题
+ * @param url 要打开的链接
+ * @param target 打开方式，默认_blank
+ */
+export function openUrlWithoutReferer(url: string, target: '_self' | '_blank' | '_parent' | '_top' = '_blank') {
+  // 创建一个a标签并设置rel属性来禁用Referer
+  const a = document.createElement('a')
+  a.href = url
+  a.target = target
+  a.rel = 'noreferrer noopener'
+
+  // 模拟点击
+  document.body.appendChild(a)
+  a.click()
+
+  // 清理
+  document.body.removeChild(a)
+}

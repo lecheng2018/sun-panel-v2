@@ -8,7 +8,7 @@ import SearchBoxWithSuggestions from '@/components/deskModule/SearchBoxWithSugge
 import { SvgIcon } from '@/components/common'
 import { deletes, getListByGroupId, saveSort } from '@/api/panel/itemIcon'
 
-import { setTitle, updateLocalUserInfo } from '@/utils/cmn'
+import { setTitle, updateLocalUserInfo, openUrlWithoutReferer } from '@/utils/cmn'
 import { useAuthStore, usePanelState } from '@/store'
 import { PanelPanelConfigStyleEnum, PanelStateNetworkModeEnum } from '@/enums'
 import { VisitMode } from '@/enums/auth'
@@ -439,7 +439,7 @@ function openPage(openMethod: number, url: string, title?: string) {
       window.location.href = url
       break
     case 2:
-      window.open(url)
+      openUrlWithoutReferer(url, '_blank')
       break
     case 3:
       windowShow.value = true
@@ -542,7 +542,7 @@ function handleTreeSelect(keys: (string | number)[]) {
 
     // 如果是书签项（非文件夹），则打开链接
     if (selectedNode && selectedNode.isLeaf && selectedNode.bookmark && selectedNode.bookmark.url) {
-      window.open(selectedNode.bookmark.url, '_blank')
+      openUrlWithoutReferer(selectedNode.bookmark.url, '_blank')
     }
   }
 }
@@ -695,7 +695,9 @@ function handleRightMenuSelect(key: string | number) {
     jumpUrl = currentRightSelectItem.value.url
   switch (key) {
     case 'newWindows':
-      window.open(jumpUrl)
+      if (jumpUrl) {
+        openUrlWithoutReferer(jumpUrl, '_blank')
+      }
       break
     case 'openWanUrl':
       if (currentRightSelectItem.value)
