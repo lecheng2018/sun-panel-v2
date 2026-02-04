@@ -133,6 +133,10 @@ const selectNote = (note: NotepadInfo) => {
     currentNote.value = { ...note } // 立即切换状态
     if (editorRef.value) {
         editorRef.value.innerHTML = note.content || ''
+        // 绑定文件下载事件
+        nextTick(() => {
+            bindFileDownloadEvents()
+        })
     }
     showList.value = false
 }
@@ -203,7 +207,8 @@ const insertFileLink = (fileInfo: { name: string, type: string, url: string }) =
     if (fileInfo.type.startsWith('image/')) {
         htmlFragment = `<div><img class="note-image" src="${fullUrl}" alt="${fileInfo.name}" /></div>`
     } else {
-        htmlFragment = `&nbsp;<a href="${fullUrl}" target="_blank" class="file-attachment" contenteditable="false" title="${t('notepad.clickToDownload')}">📁&nbsp;${fileInfo.name}</a>&nbsp;`
+        // 使用 data-filename 属性存储原始文件名，用于下载时使用
+        htmlFragment = `&nbsp;<a href="${fullUrl}" class="file-attachment" contenteditable="false" title="${t('notepad.clickToDownload')}" data-filename="${fileInfo.name}">📁&nbsp;${fileInfo.name}</a>&nbsp;`
     }
     
     editorRef.value.insertAdjacentHTML('beforeend', htmlFragment)
@@ -212,8 +217,56 @@ const insertFileLink = (fileInfo: { name: string, type: string, url: string }) =
     nextTick(() => {
         if (editorRef.value) {
            editorRef.value.scrollTop = editorRef.value.scrollHeight
+           // 为新添加的文件链接绑定点击事件
+           bindFileDownloadEvents()
         }
     })
+}
+
+// 绑定文件下载事件，确保下载时使用原始文件名
+const bindFileDownloadEvents = () => {
+    if (!editorRef.value) return
+    
+    const fileLinks = editorRef.value.querySelectorAll('.file-attachment')
+    fileLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault()
+            const url = link.getAttribute('href')
+            const filename = link.getAttribute('data-filename')
+            
+            if (url && filename) {
+                downloadFile(url, filename)
+            }
+        })
+    })
+}
+
+// 下载文件并指定文件名
+const downloadFile = async (url: string, filename: string) => {
+    try {
+        const response = await fetch(url)
+        if (!response.ok) {
+            throw new Error('Network response was not ok')
+        }
+        
+        const blob = await response.blob()
+        const urlCreator = window.URL || window.webkitURL
+        const objectUrl = urlCreator.createObjectURL(blob)
+        
+        const link = document.createElement('a')
+        link.href = objectUrl
+        link.download = filename
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        
+        // 释放对象URL
+        setTimeout(() => {
+            urlCreator.revokeObjectURL(objectUrl)
+        }, 100)
+    } catch (error) {
+        message.error(t('notepad.saveFailed'))
+    }
 }
 
 // 通用上传逻辑
@@ -341,6 +394,10 @@ const initData = async () => {
                 if (isFocused) {
                     // restore cursor? 比较复杂，但在打开瞬间通常不需要。
                 }
+                // 绑定文件下载事件
+                nextTick(() => {
+                    bindFileDownloadEvents()
+                })
             }
         } else {
             // 如果不在了，选中第一个

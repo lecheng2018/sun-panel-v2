@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	"sun-panel/api/api_v1/common/apiReturn"
 	"sun-panel/api/api_v1/common/base"
@@ -109,11 +110,81 @@ func (a *Notepad) Delete(c *gin.Context) {
 		return
 	}
 
+	// 先获取便签内容，用于解析文件链接
+	var notepad models.Notepad
+	if err := global.Db.Where("user_id = ? AND id = ?", userInfo.ID, req.Id).First(&notepad).Error; err != nil {
+		apiReturn.Error(c, "Not Found")
+		return
+	}
+
+	// 解析并删除文件
+	deleteNotepadFiles(notepad.Content, userInfo.ID)
+
+	// 删除便签记录
 	if err := global.Db.Where("user_id = ? AND id = ?", userInfo.ID, req.Id).Delete(&models.Notepad{}).Error; err != nil {
 		apiReturn.Error(c, "Delete Failed")
 		return
 	}
 	apiReturn.Success(c)
+}
+
+// deleteNotepadFiles 解析便签内容中的文件链接并删除对应文件
+func deleteNotepadFiles(content string, userId uint) {
+	// 解析图片链接
+	imgRegex := regexp.MustCompile(`<img[^>]+src="([^"]+)"`)
+	imgMatches := imgRegex.FindAllStringSubmatch(content, -1)
+
+	// 解析文件链接
+	fileRegex := regexp.MustCompile(`<a[^>]+href="([^"]+)"`)
+	fileMatches := fileRegex.FindAllStringSubmatch(content, -1)
+
+	// 收集所有文件路径
+	var filePaths []string
+	for _, match := range imgMatches {
+		if len(match) > 1 {
+			filePaths = append(filePaths, match[1])
+		}
+	}
+	for _, match := range fileMatches {
+		if len(match) > 1 {
+			filePaths = append(filePaths, match[1])
+		}
+	}
+
+	// 使用系统配置的上传路径
+	configUpload := global.Config.GetValueString("base", "source_path")
+
+	// 获取所有文件记录，用于匹配删除
+	var allFiles []models.File
+	global.Db.Find(&allFiles, "user_id = ?", userId)
+
+	// 删除文件和数据库记录
+	for _, path := range filePaths {
+		// 处理相对路径
+		if strings.HasPrefix(path, "/") {
+			path = path[1:]
+		}
+
+		// 构建完整文件路径
+		fullPath := configUpload + "/" + path
+		if strings.HasPrefix(path, "notepad/") {
+			fullPath = configUpload + "/" + path
+		}
+
+		// 检查文件是否存在并删除
+		if _, err := os.Stat(fullPath); err == nil {
+			os.Remove(fullPath)
+		}
+
+		// 删除数据库记录
+		for _, file := range allFiles {
+			// 匹配文件路径
+			if strings.Contains(file.Src, path) || strings.Contains(path, file.Src) {
+				global.Db.Delete(&file)
+				break
+			}
+		}
+	}
 }
 
 // Upload 上传文件
