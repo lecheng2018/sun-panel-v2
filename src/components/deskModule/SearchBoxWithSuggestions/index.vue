@@ -924,6 +924,8 @@ function handleEngineUpdate(engine: DeskModule.SearchBox.SearchEngine) {
 }
 
 function handleSearchClick() {
+  if (!searchTerm.value.trim())
+    return
   const url = state.value.currentSearchEngine.url
   const keyword = searchTerm
   // 如果网址中存在 %s，则直接替换为关键字
@@ -973,8 +975,13 @@ const handleItemSearch = () => {
 
 // 处理键盘事件
 const handleKeyDown = (e: KeyboardEvent) => {
+  // 解决输入法回车问题：如果正在合成（选词），则不处理回车
+  if (e.isComposing)
+    return
+
   // 只有在提示框可见且有提示词时才处理键盘事件
-  if (!suggestionsVisible.value || filteredSuggestions.value.length === 0) return
+  if (!suggestionsVisible.value || filteredSuggestions.value.length === 0)
+    return
 
   // 下箭头：选中下一项
   if (e.key === 'ArrowDown') {
@@ -1025,7 +1032,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="search-box w-full" @keydown.enter="handleSearchClick" @keydown.esc="handleClearSearchTerm">
+  <div class="search-box w-full" @keydown.enter.prevent="handleSearchClick" @keydown.esc="handleClearSearchTerm">
     <div class="search-container flex rounded-2xl items-center justify-center text-white w-full relative" :style="{ background, color: textColor }" :class="{ focused: isFocused }">
       <div class="search-box-btn-engine w-[40px] flex justify-center cursor-pointer" @click="handleEngineClick">
         <NAvatar :src="state.currentSearchEngine?.iconSrc || defaultSearchEngineList[0]?.iconSrc" style="background-color: transparent;" :size="20" />

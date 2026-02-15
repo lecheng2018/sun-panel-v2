@@ -13,6 +13,7 @@ func InitPingRouter(router *gin.RouterGroup) {
 			c.Header("Access-Control-Allow-Origin", "*")
 			c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
 			c.Header("Access-Control-Allow-Headers", "*")
+			c.Header("Access-Control-Allow-Private-Network", "true")
 			c.Next()
 		}, ping.Get)
 
@@ -20,6 +21,7 @@ func InitPingRouter(router *gin.RouterGroup) {
 			c.Header("Access-Control-Allow-Origin", "*")
 			c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
 			c.Header("Access-Control-Allow-Headers", "*")
+			c.Header("Access-Control-Allow-Private-Network", "true")
 			c.Status(204)
 		})
 	}
