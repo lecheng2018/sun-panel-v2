@@ -27,16 +27,14 @@ WORKDIR /build
 
 COPY ./service .
 
-# 中国国内源
-# RUN sed -i "s@dl-cdn.alpinelinux.org@mirrors.aliyun.com@g" /etc/apk/repositories \
-#     && go env -w GOPROXY=https://goproxy.cn,direct
-
-RUN apk add --no-cache bash curl gcc git musl-dev
-
+# 中国国内源 (根据需要启用)
 RUN go env -w GO111MODULE=on \
-    && go install github.com/go-bindata/go-bindata/go-bindata@v3.13.0 \
-    && rm -f bindata.go assets/bindata.go \
-    && /go/bin/go-bindata -o=assets/bindata.go -pkg=assets assets/... \
+    && go env -w GOPROXY=https://goproxy.cn,direct
+
+RUN go install github.com/go-bindata/go-bindata/go-bindata@v3.13.0
+
+RUN rm -f bindata.go assets/bindata.go \
+    && /go/bin/go-bindata -o=assets/bindata.go -pkg=assets -ignore="bindata.go" assets/... \
     && go build -o sun-panel --ldflags="-X sun-panel/global.RUNCODE=release -X sun-panel/global.ISDOCKER=docker" main.go
 
 
