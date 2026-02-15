@@ -979,7 +979,25 @@ const handleKeyDown = (e: KeyboardEvent) => {
   if (e.isComposing)
     return
 
-  // 只有在提示框可见且有提示词时才处理键盘事件
+  // 如果按下的是回车键
+  if (e.key === 'Enter') {
+    // 如果输入框为空，则不执行任何逻辑，且阻止冒泡和默认行为
+    if (!searchTerm.value.trim()) {
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
+
+    // 如果当前有选中的建议项，先处理建议项选择（在下面的逻辑中处理）
+    // 如果没有建议项或者没有选中，则执行搜索
+    if (!suggestionsVisible.value || filteredSuggestions.value.length === 0 || selectedIndex.value < 0) {
+      e.preventDefault()
+      handleSearchClick()
+      return
+    }
+  }
+
+  // 只有在提示框可见且有提示词时才处理键盘事件（后续的上下箭头等）
   if (!suggestionsVisible.value || filteredSuggestions.value.length === 0)
     return
 
@@ -1032,7 +1050,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="search-box w-full" @keydown.enter.prevent="handleSearchClick" @keydown.esc="handleClearSearchTerm">
+  <div class="search-box w-full" @keydown.esc="handleClearSearchTerm">
     <div class="search-container flex rounded-2xl items-center justify-center text-white w-full relative" :style="{ background, color: textColor }" :class="{ focused: isFocused }">
       <div class="search-box-btn-engine w-[40px] flex justify-center cursor-pointer" @click="handleEngineClick">
         <NAvatar :src="state.currentSearchEngine?.iconSrc || defaultSearchEngineList[0]?.iconSrc" style="background-color: transparent;" :size="20" />
