@@ -54,6 +54,7 @@ func (l LoginApi) Login(c *gin.Context) {
 	)
 	bToken := ""
 	param.Username = strings.TrimSpace(param.Username)
+	global.Logger.Infof("DEBUG LOGIN: Received Username=[%s], PasswordLength=%d, TargetHash=[%s]", param.Username, len(param.Password), cmn.PasswordEncryption(param.Password))
 	if info, err = mUser.GetUserInfoByUsernameAndPassword(param.Username, cmn.PasswordEncryption(param.Password)); err != nil {
 		// 未找到记录 账号或密码错误
 		if err == gorm.ErrRecordNotFound {
