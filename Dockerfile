@@ -34,10 +34,9 @@ COPY ./service .
 RUN apk add --no-cache bash curl gcc git musl-dev
 
 RUN go env -w GO111MODULE=on \
-    && export PATH=$PATH:/go/bin \
-    && go install -a -v github.com/go-bindata/go-bindata/...@latest \
+    && go install github.com/go-bindata/go-bindata/go-bindata@v3.13.0 \
     && rm -f bindata.go assets/bindata.go \
-    && go-bindata -o=assets/bindata.go -pkg=assets assets/... \
+    && /go/bin/go-bindata -o=assets/bindata.go -pkg=assets assets/... \
     && go build -o sun-panel --ldflags="-X sun-panel/global.RUNCODE=release -X sun-panel/global.ISDOCKER=docker" main.go
 
 
