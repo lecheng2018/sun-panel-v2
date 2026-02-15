@@ -33,7 +33,7 @@ RUN apk add --no-cache bash curl gcc git musl-dev
 RUN go env -w GO111MODULE=on \
     && go env -w GOPROXY=https://goproxy.cn,direct
 
-RUN go install github.com/go-bindata/go-bindata/go-bindata@v3.13.0
+RUN go install github.com/go-bindata/go-bindata/v3/go-bindata@latest
 
 RUN rm -f bindata.go assets/bindata.go \
     && /go/bin/go-bindata -o=assets/bindata.go -pkg=assets -ignore="bindata.go" assets/... \
