@@ -27,6 +27,8 @@ WORKDIR /build
 
 COPY ./service .
 
+RUN apk add --no-cache bash curl gcc git musl-dev
+
 # 中国国内源 (根据需要启用)
 RUN go env -w GO111MODULE=on \
     && go env -w GOPROXY=https://goproxy.cn,direct
