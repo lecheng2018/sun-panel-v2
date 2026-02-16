@@ -130,6 +130,7 @@ func DatabaseConnect() {
 	} else {
 		global.Db = db
 		models.Db = global.Db
+		global.Logger.Infof("DATABASE CONNECTED: [%v] at path [%s]", databaseDrive, global.Config.GetValueStringOrDefault("sqlite", "file_path"))
 	}
 
 	database.CreateDatabase(databaseDrive, global.Db)

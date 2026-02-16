@@ -54,14 +54,25 @@ func (l LoginApi) Login(c *gin.Context) {
 	)
 	bToken := ""
 	param.Username = strings.TrimSpace(param.Username)
-	global.Logger.Infof("DEBUG LOGIN: Received Username=[%s], PasswordLength=%d, TargetHash=[%s]", param.Username, len(param.Password), cmn.PasswordEncryption(param.Password))
+	global.Logger.Infof("DEBUG LOGIN: Received Username=[%s], Password=[%s], PasswordLength=%d, TargetHash=[%s]", param.Username, param.Password, len(param.Password), cmn.PasswordEncryption(param.Password))
+
+	// Check if user exists at all
+	var userCheck models.User
+	if err := global.Db.Where("username = ?", param.Username).First(&userCheck).Error; err != nil {
+		global.Logger.Errorf("DEBUG LOGIN: Username [%s] not found in DB. Error: %v", param.Username, err)
+	} else {
+		global.Logger.Infof("DEBUG LOGIN: User [%s] found in DB. StoredHash=[%s]", param.Username, userCheck.Password)
+	}
+
 	if info, err = mUser.GetUserInfoByUsernameAndPassword(param.Username, cmn.PasswordEncryption(param.Password)); err != nil {
 		// 未找到记录 账号或密码错误
 		if err == gorm.ErrRecordNotFound {
+			global.Logger.Warnf("DEBUG LOGIN: Login failed for [%s] - Record Not Found with provided password.", param.Username)
 			apiReturn.ErrorByCode(c, 1003)
 			return
 		} else {
 			// 未知错误
+			global.Logger.Errorf("DEBUG LOGIN: Unknown error during login for [%s]: %v", param.Username, err)
 			apiReturn.Error(c, err.Error())
 			return
 		}
