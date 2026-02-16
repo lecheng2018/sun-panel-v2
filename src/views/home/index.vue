@@ -1057,6 +1057,7 @@ function handleChangeNetwork(targetMode: PanelStateNetworkModeEnum) {
             headers: {
               'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify({
               username: authStore.userInfo?.username,
               password: passwordInput.value,

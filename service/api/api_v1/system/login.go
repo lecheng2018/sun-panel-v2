@@ -67,20 +67,23 @@ func (l LoginApi) Login(c *gin.Context) {
 	if info, err = mUser.GetUserInfoByUsernameAndPassword(param.Username, cmn.PasswordEncryption(param.Password)); err != nil {
 		// 未找到记录 账号或密码错误
 		if err == gorm.ErrRecordNotFound {
-			global.Logger.Warnf("DEBUG LOGIN: Login failed for [%s] - Record Not Found with provided password.", param.Username)
+			global.Logger.Warnf("DEBUG LOGIN: Login failed for [%s] - RECORD NOT FOUND with password index match.", param.Username)
 			apiReturn.ErrorByCode(c, 1003)
 			return
 		} else {
 			// 未知错误
-			global.Logger.Errorf("DEBUG LOGIN: Unknown error during login for [%s]: %v", param.Username, err)
+			global.Logger.Errorf("DEBUG LOGIN: Database Error for [%s]: %v", param.Username, err)
 			apiReturn.Error(c, err.Error())
 			return
 		}
 
 	}
 
+	global.Logger.Infof("DEBUG LOGIN: GetUserInfo SUCCESS. Found ID=[%d], Status=[%d]", info.ID, info.Status)
+
 	// 停用或未激活
 	if info.Status != 1 {
+		global.Logger.Warnf("DEBUG LOGIN: User [%s] is DISABLED or INACTIVE. Status=[%d]. Returning 1004.", param.Username, info.Status)
 		apiReturn.ErrorByCode(c, 1004)
 		return
 	}
@@ -113,6 +116,7 @@ func (l LoginApi) Login(c *gin.Context) {
 	// 设置当前用户信息
 	c.Set("userInfo", info)
 	info.Token = cToken // 重要 采用cToken,隐藏真实token
+	global.Logger.Infof("DEBUG LOGIN: ALL STEPS COMPLETE. Returning SuccessData for [%s]. Token=[%s...]", param.Username, cToken[:10])
 	apiReturn.SuccessData(c, info)
 }
 
