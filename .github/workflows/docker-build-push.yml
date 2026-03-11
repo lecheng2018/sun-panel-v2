@@ -16,13 +16,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      # 验证 pnpm 锁定文件存在
-      - name: Verify pnpm-lock.yaml exists
+      # 验证 npm 锁定文件存在
+      - name: Verify package-lock.json exists
         run: |
-          if [ -f "pnpm-lock.yaml" ]; then
-            echo "pnpm-lock.yaml found. File size: $(du -h pnpm-lock.yaml)"
+          if [ -f "package-lock.json" ]; then
+            echo "package-lock.json found. File size: $(du -h package-lock.json)"
           else
-            echo "ERROR: pnpm-lock.yaml not found (pnpm 锁定文件缺失)"
+            echo "ERROR: package-lock.json not found (npm 锁定文件缺失)"
             exit 1
           fi
 
@@ -31,16 +31,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22.10.0'
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
 
-      # 安装 pnpm
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-
-      # 使用 pnpm 安装依赖
-      - name: Install dependencies with pnpm
-        run: pnpm install --frozen-lockfile
+      # 使用 npm 安装依赖
+      - name: Install dependencies with npm
+        run: npm ci
 
       # 执行类型检查和构建（使用 npm 运行脚本）
       - name: Run type check and build
