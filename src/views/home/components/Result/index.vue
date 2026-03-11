@@ -75,5 +75,5 @@ defineExpose({ textRef })
 </template>
 
 <style lang="less">
-@import url(./style.less);
+@import './style.less';
 </style>
