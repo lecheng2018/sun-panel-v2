@@ -29,6 +29,18 @@ func LoginInterceptor(c *gin.Context) {
 		token, ok = global.CUserToken.Get(cToken)
 		// 可能已经安全退出或者很久没有使用已过期
 		if !ok || token == "" {
+			// 尝试把客户端提供的 token 当作真实存库的 token(bToken)去数据库查找
+			mUser := models.User{}
+			if info, err := mUser.GetUserInfoByToken(cToken); err == nil && info.ID != 0 && info.Token != "" {
+				// 找到了，说明客户端直接带的是 bToken，建立缓存映射并继续
+				token = info.Token
+				global.UserToken.SetDefault(token, info)
+				global.CUserToken.SetDefault(cToken, token)
+				c.Set("userInfo", info)
+				return
+			}
+
+			// 否则视为登录过期
 			apiReturn.ErrorByCode(c, 1001)
 			c.Abort() // 终止执行后续的操作，一般配合return使用
 			return
