@@ -635,7 +635,7 @@ function handleIconUpload(e: Event) {
 
 const defaultState: State = {
   currentSearchEngine: defaultSearchEngineList.value[0],
-  searchEngineList: [] || defaultSearchEngineList,
+  searchEngineList: defaultSearchEngineList.value,
   newWindowOpen: false,
   searchBookmarks: true
 }
