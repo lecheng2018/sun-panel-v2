@@ -65,5 +65,12 @@ export default defineConfig((env) => {
         },
       },
     },
+    css: {
+      preprocessorOptions: {
+        less: {
+          javascriptEnabled: true,
+        },
+      },
+    },
   }
 })
