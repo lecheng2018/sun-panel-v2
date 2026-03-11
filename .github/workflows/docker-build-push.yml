@@ -36,7 +36,7 @@ jobs:
 
       # 使用 npm 安装依赖
       - name: Install dependencies with npm
-        run: npm ci
+        run: npm install
 
       # 执行类型检查和构建（使用 npm 运行脚本）
       - name: Run type check and build
