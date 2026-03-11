@@ -16,27 +16,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      # 验证 npm 锁定文件存在（npm 生成的是 package-lock.json）
-      - name: Verify package-lock.json exists
+      # 验证 pnpm 锁定文件存在
+      - name: Verify pnpm-lock.yaml exists
         run: |
-          if [ -f "package-lock.json" ]; then
-            echo "package-lock.json found. File size: $(du -h package-lock.json)"
+          if [ -f "pnpm-lock.yaml" ]; then
+            echo "pnpm-lock.yaml found. File size: $(du -h pnpm-lock.yaml)"
           else
-            echo "ERROR: package-lock.json not found (npm 锁定文件缺失)"
+            echo "ERROR: pnpm-lock.yaml not found (pnpm 锁定文件缺失)"
             exit 1
           fi
 
-      # 设置与本地一致的 Node.js 22.10.0（自带 npm 10.9.0）
+      # 设置与本地一致的 Node.js 22.10.0
       - name: Set up Node.js 22.10.0
         uses: actions/setup-node@v4
         with:
           node-version: '22.10.0'
-          cache: 'npm'  # 缓存 npm 依赖
-          cache-dependency-path: 'package-lock.json'  # 基于 npm 锁定文件缓存
 
-      # 使用 npm 安装依赖（与本地一致）
-      - name: Install dependencies with npm
-        run: npm ci  # 等同于 npm install --frozen-lockfile，严格遵循锁定文件
+      # 安装 pnpm
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      # 使用 pnpm 安装依赖
+      - name: Install dependencies with pnpm
+        run: pnpm install --frozen-lockfile
 
       # 执行类型检查和构建（使用 npm 运行脚本）
       - name: Run type check and build
