@@ -16,16 +16,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      # 验证 pnpm-lock.yaml 存在
-      - name: Verify pnpm-lock.yaml exists
-        run: |
-          if [ -f "pnpm-lock.yaml" ]; then
-            echo "pnpm-lock.yaml found. File size: $(du -h pnpm-lock.yaml)"
-          else
-            echo "ERROR: pnpm-lock.yaml not found (pnpm 锁定文件缺失)"
-            exit 1
-          fi
-
       # 设置与本地一致的 Node.js 22.10.0
       - name: Set up Node.js 22.10.0
         uses: actions/setup-node@v4
@@ -42,7 +32,6 @@ jobs:
       - name: Install dependencies with pnpm
         run: |
           pnpm config set registry https://registry.npmmirror.com
-          rm -rf node_modules pnpm-lock.yaml
           pnpm install
 
       # 执行类型检查和构建（使用 pnpm 运行脚本）
