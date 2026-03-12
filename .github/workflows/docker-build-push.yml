@@ -16,13 +16,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      # 验证 npm 锁定文件存在
-      - name: Verify package-lock.json exists
+      # 验证 pnpm-lock.yaml 存在
+      - name: Verify pnpm-lock.yaml exists
         run: |
-          if [ -f "package-lock.json" ]; then
-            echo "package-lock.json found. File size: $(du -h package-lock.json)"
+          if [ -f "pnpm-lock.yaml" ]; then
+            echo "pnpm-lock.yaml found. File size: $(du -h pnpm-lock.yaml)"
           else
-            echo "ERROR: package-lock.json not found (npm 锁定文件缺失)"
+            echo "ERROR: pnpm-lock.yaml not found (pnpm 锁定文件缺失)"
             exit 1
           fi
 
@@ -31,20 +31,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22.10.0'
-          cache: 'npm'
-          cache-dependency-path: 'package-lock.json'
 
-      # 使用 npm 安装依赖
-      - name: Install dependencies with npm
+      # 安装 pnpm
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      # 使用 pnpm 安装依赖
+      - name: Install dependencies with pnpm
         run: |
-          rm -rf node_modules package-lock.json
-          npm install
+          pnpm config set registry https://registry.npmmirror.com
+          rm -rf node_modules pnpm-lock.yaml
+          pnpm install
 
-      # 执行类型检查和构建（使用 npm 运行脚本）
+      # 执行类型检查和构建（使用 pnpm 运行脚本）
       - name: Run type check and build
         run: |
-          npm run type-check
-          npm run build
+          pnpm run type-check
+          pnpm run build
 
       # 读取版本信息（保持不变）
       - name: Read version from file

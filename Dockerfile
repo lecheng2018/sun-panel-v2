@@ -6,13 +6,19 @@ RUN npm config set registry https://registry.npmmirror.com
 
 RUN npm install pnpm -g
 
+# 配置 pnpm 使用淘宝镜像源
+RUN pnpm config set registry https://registry.npmmirror.com
+
 WORKDIR /build
 
-# 先复制整个项目（排除.dockerignore中的文件）
-COPY . /build
+# 先复制依赖文件（利用 Docker 缓存层）
+COPY package.json package-lock.json pnpm-lock.yaml ./
 
 # 安装依赖
-RUN pnpm install
+RUN pnpm install --frozen-lockfile
+
+# 再复制其他文件
+COPY . .
 
 # 构建项目
 RUN pnpm run build
