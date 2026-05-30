@@ -3,7 +3,6 @@ import EditItem from './EditItem/index.vue'
 import AppIcon from './AppIcon/index.vue'
 import AppStarter from './AppStarter/index.vue'
 
-import NotePad from './NotePad/index.vue'
 export {
-  Result, EditItem, AppIcon, AppStarter, NotePad,
+  Result, EditItem, AppIcon, AppStarter,
 }
