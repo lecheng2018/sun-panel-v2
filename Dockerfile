@@ -9,8 +9,8 @@ WORKDIR /build
 # 先复制依赖文件（利用 Docker 缓存层）
 COPY package.json package-lock.json ./
 
-# 安装依赖（包含可选依赖，解决 rollup 原生模块问题）
-RUN npm ci --include=optional
+# 安装依赖（删除 lock 文件重新生成，解决 Alpine 上可选依赖问题）
+RUN rm -f package-lock.json && npm install
 
 # 再复制其他文件
 COPY . .
