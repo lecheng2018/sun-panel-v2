@@ -4,24 +4,19 @@ FROM node:18-alpine AS web_image
 # 使用淘宝npm镜像源加速依赖安装
 RUN npm config set registry https://registry.npmmirror.com
 
-RUN npm install pnpm -g
-
-# 配置 pnpm 使用淘宝镜像源
-RUN pnpm config set registry https://registry.npmmirror.com
-
 WORKDIR /build
 
 # 先复制依赖文件（利用 Docker 缓存层）
-COPY package.json package-lock.json pnpm-lock.yaml ./
+COPY package.json package-lock.json ./
 
 # 安装依赖
-RUN pnpm install
+RUN npm ci
 
 # 再复制其他文件
 COPY . .
 
 # 构建项目
-RUN pnpm run build
+RUN npm run build
 
 # build backend
 # 最新alpine3.19导致sqlite3编译失败(https://github.com/mattn/go-sqlite3/issues/1164，
